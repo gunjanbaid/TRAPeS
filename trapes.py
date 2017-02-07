@@ -10,6 +10,22 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
+# Constants for read length
+SHORT = 40
+MEDIUM = 90
+
+
+# Takes in a BAM/SAM filename (str) and returns average read length (int) from stats
+def get_ave_read_length(filename):
+    p1 = subprocess.Popen(["samtools", "stats", filename], stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(["cut", "-f", "2-"], stdin=p1.stdout, stdout=subprocess.PIPE)
+    p3 = subprocess.Popen(["grep", "average length"], stdin=p2.stdout, stdout=subprocess.PIPE)
+    p4 = subprocess.Popen(["cut", "-f", "2-"], stdin=p3.stdout, stdout=subprocess.PIPE)
+    return int(p4.stdout.read().strip())
+
+def is_paired_end(filename):
+    return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
+
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
@@ -45,6 +61,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     bed = currFolder + 'Data/hg38/hg38.TCR.bed'
                     mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
                     aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
+                    refInd = currFolder + 'Data/hg38/index/hg38'
                 if genome == 'mm10':
                     fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
                     bed = currFolder + 'Data/mm10/mm10.TCR.bed'
@@ -62,7 +79,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
 
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools)
+                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -211,18 +228,34 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools):
+                  rsem, bowtie2, lowQ, samtools, refInd):
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
-    sys.stdout.flush()
-    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
-    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
-    sys.stdout.flush()
+
+    ave_length = get_ave_read_length(unmapped)
+    paired_end = is_paired_end(bam)
+    print("average length " + str(ave_length))
+    if ave_length < SHORT and paired_end:
+        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        sys.stdout.flush()
+        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
+        sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
+        sys.stdout.flush()
+    elif ave_length < SHORT and not paired_end:
+        pass
+    elif ave_length < MEDIUM and paired_end:
+        pass
+    elif ave_length < MEDIUM and not paired_end:
+        analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd)    
+    elif ave_length > MEDIUM and paired_end:
+        pass
+    elif ave_length > MEDIUM and not paired_end:
+        pass
+
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
     sys.stdout.flush()
@@ -264,47 +297,59 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
     sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
     sys.stdout.flush()
-    makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
-                             unDictAlpha, unDictBeta, idNameDict)
+    # makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
+                             # unDictAlpha, unDictBeta, idNameDict)
 
 
-
-def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, output, fastaDict, bases):
+def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
-    lenArr = [999,50,25]
-    for currLen in lenArr:
-        if currLen == 999:
-            steps = ['none']
-        else:
-            steps = ['left','right']
-        for side in steps:
-            if side == 'left':
-                crop = 'CROP:' + str(currLen)
-            elif side == 'right':
-                crop = 'HEADCROP:' + str(currLen)
-            else:
-                crop = ''
+    # lenArr = [25]
+    # for currLen in lenArr:
+        # if currLen == 999:
+        #     steps = ['none']
+        # else:
+        #     steps = ['left','right']
+        # for side in steps:
+        #     if side == 'left':
+        #         crop = 'CROP:' + str(currLen)
+        #     elif side == 'right':
+        #         crop = 'HEADCROP:' + str(currLen)
+        #     else:
+        #         crop = ''
         # TODO: make sure we delete those files
-            trimFq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
+            # trimFq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
             # TODO: use bowtie trimmer instead
             # TODO: make sure about minus strand alignment
-            if crop == '':
-                subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', 'MINLEN:20'])
-            else:
-                subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', crop, 'MINLEN:20'])
-            samF = trimFq + '.sam'
-            if bowtie2 != '':
-                if bowtie2.endswith('/'):
-                    bowtieCall = bowtie2 + 'bowtie2'
-                else:
-                    bowtieCall = bowtie2 + '/bowtie2'
-            else:
-                bowtieCall = 'bowtie2'
-            subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x',transInd,'-U',trimFq,'-S',samF])
-            if os.path.isfile(samF):
-                mappedReadsDictAlpha = findReadsAndSegments(samF, mappedReadsDictAlpha, idNameDict,'A')
-                mappedReadsDictBeta = findReadsAndSegments(samF, mappedReadsDictBeta, idNameDict,'B')
+
+            # Gunjan: replacing this part
+            # if crop == '':
+            #     subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', 'MINLEN:20'])
+            # else:
+            #     subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', crop, 'MINLEN:20'])
+            # print(["samtools", "bam2fq", unmapped, ">", unmapped + ".fq"])
+    fastq = unmapped + ".fq"
+            # subprocess.call(["samtools", "bam2fq", "-s", fastq, unmapped])
+            
+            # subprocess.Popen(["samtools", "bam2fq", unmapped], stdout=open(fastq, "w"))
+
+    samF = fastq + '.trimmed.fq' + '.sam'
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
+        else:
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd,'-U', fastq,'-S', samF , "--trim3", "25"])
+    print("DONE WITH BOWTIE!!!!")
+    print("THIS IS IDNAMEDICT " + str(idNameDict))
+
+    if os.path.isfile(samF):
+        mappedReadsDictAlpha = findReadsAndSegments(samF, mappedReadsDictAlpha, idNameDict, 'A')
+        mappedReadsDictBeta = findReadsAndSegments(samF, mappedReadsDictBeta, idNameDict, 'B')
+    print("THIS IS ALPHA MAPPED " + str(mappedReadsDictAlpha))
+    print("THIS IS BETA MAPPED " + str(mappedReadsDictBeta))
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
@@ -313,7 +358,7 @@ def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, out
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq)
-    sys.exit(1)
+    # sys.exit(1)
 
 
 def writeReadsFileSE(mappedReadsDict, outReads, fastq):
@@ -1061,19 +1106,19 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, sa
     if bowtie2 != '':
         if bowtie2[-1] != '/':
             bowtie2 += '/'
+    print(fullTcrFileAlpha)
     if os.path.exists(fullTcrFileAlpha):
         if bowtie2 != '':
             subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2', '--bowtie2-path', bowtie2 ,
                              '-q', fullTcrFileAlpha, rsemIndDir + '/VDJ.alpha.seq'])
             subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q',
-                             '--bowtie2', '--bowtie2-path',bowtie2, '--bowtie2-mismatch-rate', '0.0' , '--paired-end', output + '.alpha.R1.fa',
-                             output + '.alpha.R2.fa', rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
+                             '--bowtie2', '--bowtie2-path',bowtie2, '--bowtie2-mismatch-rate', '0.0' , output + '.alpha.fa',
+                             rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
         else:
             subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2',
                              '-q', fullTcrFileAlpha, rsemIndDir + '/VDJ.alpha.seq'])
             subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q',
-                             '--bowtie2', '--bowtie2-mismatch-rate', '0.0', '--paired-end', output + '.alpha.R1.fa',
-                             output + '.alpha.R2.fa', rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
+                             '--bowtie2', '--bowtie2-mismatch-rate', '0.0', output + '.alpha.fa', rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
         unsortedBam = output + '.alpha.rsem.out.transcript.bam'
         if not os.path.exists(unsortedBam):
             print "RSEM did not produce any transcript alignment files for alpha chain, please check the -rsem parameter"
@@ -1118,7 +1163,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
     ffound = False
     for tcrRecord in SeqIO.parse(tcrF, 'fasta'):
         tcrSeq = str(tcrRecord.seq)
-        if tcrSeq.find('NNNNN') == -1 :
+        if tcrSeq.find('NNNNNNNNNNNN') == -1:
             if ffound == False:
                 ffound = True
                 outF = open(outName, 'w')
@@ -1682,7 +1727,7 @@ if __name__ == '__main__':
     parser.add_argument('-bowtie2','-bw','-BW', help='Path to bowtie2. If not used assumes that bowtie2 is in the'
                                                  'default path', default = '')
     parser.add_argument('-rsem','-RSEM', help='Path to rsem. If not used assumes that rsem is in the'
-                                                'default path', default = '/data/yosef/users/safik/bin/rsem-1.2.21/')
+                                                'default path', default = '')
     parser.add_argument('-strand', help='Strand of the right most read in genomic coordinates. Options are: [minus, plus, '
                                         'none]. Defualt is minus', default = 'minus')
     parser.add_argument('-output','-out','-o','-O', help='output prefix, relative to /path/singleCellFolder', required=True)
