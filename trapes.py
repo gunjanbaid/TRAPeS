@@ -134,7 +134,6 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
     finalStatDict[cellFolder] = {'alpha':'Failed - found V and J segments but wasn\'t able to extend them',
                                  'beta':'Failed - found V and J segments but wasn\'t able to extend them'}
     if os.path.isfile(noutput + '.summary.txt'):
-        print("GOT TO IF")
         currOut = open(noutput + '.summary.txt','r')
         msgA = 'None'
         msgB = 'None'
@@ -255,37 +254,36 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-    sys.stdout.flush()
+
 
     ave_length = get_ave_read_length(unmapped)
     paired_end = is_paired_end(bam)
     print("average length " + str(ave_length))
-    if ave_length < SHORT and paired_end:
+
+    if paired_end:
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
+        sys.stdout.flush()
         unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
         sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
         sys.stdout.flush()
         unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
-        sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
+    else:
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
         sys.stdout.flush()
-    elif ave_length < SHORT and not paired_end:
-        pass
-    elif ave_length < MEDIUM and paired_end:
-        pass
-    elif ave_length < MEDIUM and not paired_end:
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        sys.stdout.flush()
         analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = unDictAlpha
-    elif ave_length > MEDIUM and paired_end:
-        pass
-    elif ave_length > MEDIUM and not paired_end:
-        pass
-
-    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
         output + '.reconstructed.junctions.alpha.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
+    sys.stdout.flush()
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    
     sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
     sys.stdout.flush()
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
@@ -294,6 +292,24 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     fullTcrFileBeta = output + '.beta.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.beta.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
+    sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
+    sys.stdout.flush()
+
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
+    sys.stdout.flush()
+    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
+        output + '.reconstructed.junctions.alpha.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    
+    sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
+    sys.stdout.flush()
+    fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
+    tcrF = output + '.reconstructed.junctions.alpha.fa'
+    createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict)
+    fullTcrFileBeta = output + '.beta.full.TCRs.fa'
+    tcrF = output + '.reconstructed.junctions.beta.fa'
+    createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
+
     sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     sys.stdout.flush()
     outDirInd = output.rfind('/')
@@ -322,20 +338,6 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
     sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
     sys.stdout.flush()
-    # print("fDictAlpha")
-    # print(fDictAlpha)
-    # print("fDictBeta")
-    # print(fDictBeta)
-    # print("betaRsemOut")
-    # print(betaRsemOut)
-    # print("alphaBam")
-    # print(alphaBam)
-    # print("fastaDict")
-    # print(fastaDict)
-    # print("unDictAlpha")
-    # print(unDictAlpha)
-    # print("idNameDict")
-    # print(idNameDict)
 
     # no modifications to unDictAlpha/unDictBeta after this point,
     # just checking its contents
@@ -372,7 +374,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
             #     subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', crop, 'MINLEN:20'])
             # print(["samtools", "bam2fq", unmapped, ">", unmapped + ".fq"])
     fastq = unmapped + ".fq"
-    fastq_mapped = bam + ".fq"
+    fastq2 = bam + ".fq"
             # subprocess.call(["samtools", "bam2fq", "-s", fastq, unmapped])
             
             # subprocess.Popen(["samtools", "bam2fq", unmapped], stdout=open(fastq, "w"))
@@ -388,6 +390,15 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
             bowtieCall = bowtie2 + '/bowtie2'
     else:
         bowtieCall = 'bowtie2'
+
+    if not os.path.isfile(fastq):
+        fastq_file = open(fastq, "w+")
+        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+        fastq_file.close()
+    if not os.path.isfile(fastq2):
+        fastq2_file = open(fastq2, "w+")
+        subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
+        fastq2_file.close()
 
     # need fastq format of unmapped.bam here
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", "25"])
@@ -413,8 +424,6 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
         mappedReadsDictAlpha = findReadsAndSegments(sam_mapped, mappedReadsDictAlpha, idNameDict, 'A')
         mappedReadsDictBeta = findReadsAndSegments(sam_mapped, mappedReadsDictBeta, idNameDict, 'B')
 
-    print("GOT HERE 1")
-
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
@@ -422,12 +431,10 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
 
-    print("GOT HERE 2")
 
-    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq)
-    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq)
+    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
+    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
-    print("GOT HERE 3") 
 
     # junctionSegsAlpha = makeJunctionFile(bam, 'A', output, bases, vdjDict, fastaDict, idNameDict)
     # junctionSegsBeta = makeJunctionFile(bam, 'B', output, bases, vdjDict, fastaDict, idNameDict)
@@ -499,7 +506,7 @@ def writeUnmappedReadsSingleEnd(bam, unmapped, junctionSegs, output, vdjDict, ch
 
 
 
-def writeReadsFileSE(mappedReadsDict, outReads, fastq):
+def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     if fastq.endswith('.gz'):
         subprocess.call(['gunzip', fastq])
         newFq = fastq.replace('.gz','')
@@ -511,8 +518,14 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq):
         if record.id in mappedReadsDict:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
-    out.close()
     fqF.close()
+    fqF2 = open(fastq2, 'rU')
+    for record in SeqIO.parse(fqF2, 'fastq'):
+        if record.id in mappedReadsDict:
+            newRec = SeqRecord(record.seq, id = record.id, description = '')
+            SeqIO.write(newRec,out,'fasta')
+    fqF2.close()
+    out.close()
     if fastq.endswith('.gz'):
         subprocess.call(['gzip',newFq])
 
@@ -1061,6 +1074,7 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
     return fDict
 
 
+# Is getCDR3() essentially calling .find()?
 
 def getCDR3(aaSeq, vSeq, jSeq):
     minDist = 14
@@ -1251,7 +1265,6 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, sa
     if bowtie2 != '':
         if bowtie2[-1] != '/':
             bowtie2 += '/'
-    print(fullTcrFileAlpha)
     if os.path.exists(fullTcrFileAlpha):
         if bowtie2 != '':
             subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2', '--bowtie2-path', bowtie2 ,
@@ -1311,7 +1324,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
         if tcrSeq.find('NNNNN') == -1:
             if ffound == False:
                 ffound = True
-                outF = open(outName, 'w')
+                outF = open(outName, 'a+')
             idArr = tcrRecord.id.split('.')
 
             vEns = idArr[0]
