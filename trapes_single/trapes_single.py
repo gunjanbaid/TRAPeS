@@ -10,10 +10,6 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
-# Constants for read length
-SHORT = 40
-MEDIUM = 90
-
 
 # Takes in a BAM/SAM filename (str) and returns average read length (int) from stats
 def get_ave_read_length(filename):
@@ -26,64 +22,48 @@ def get_ave_read_length(filename):
 def is_paired_end(filename):
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
 
-
 def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
-        #runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-        #          rsem, bowtie2, lowQ, singleEnd, fastq, trimmomatic, transInd)
         sys.exit(0)
-    if path == './':
+    if path == "./":
         path = os.getcwd()
-    if not path.endswith('/'):
-        path = path + '/'
-    finalStatDict = dict()
-    tcrFout = open(sumF + '.TCRs.txt','w')
+    if not path.endswith("/"):
+        path = path + "/"
+    finalStatDict = {}
+    tcrFout = open(sumF + ".TCRs.txt", "w")
     opened = False
     for cellFolder in os.listdir(path):
-        fullPath = path + cellFolder + '/'
-        if((os.path.exists(fullPath)) & (os.path.isdir(fullPath))):
-            sys.stdout.write(str(datetime.datetime.now()) + " Working on: " + cellFolder + '\n')
-            sys.stdout.flush()
-            (found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
+        fullPath = path + cellFolder + "/"
+        if os.path.exists(fullPath) and os.path.isdir(fullPath):
+            print(datetime.datetime.now()) + " Working on: " + cellFolder)
+            found, nbam, nunmapped, noutput = formatFiles(fullPath, bam, unmapped, output)
             if not found:
-                sys.stderr.write(str(datetime.datetime.now()) + " There is not a bam or unmapped file in "
-                                                                "this folder, moving to the next folder\n")
-                sys.stderr.flush()
+                print(str(datetime.datetime.now())
+                    " There is not a bam or unmapped file in\n"
+                    "this folder, moving to the next folder.")
             else:
                 currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
                 reconstruction = currFolder + '/vdj.alignment'
-                if genome == 'hg38':
-                    fasta = currFolder + 'Data/hg38/hg38.TCR.fa'
-                    bed = currFolder + 'Data/hg38/hg38.TCR.bed'
-                    mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
-                    refInd = currFolder + 'Data/hg38/index/hg38'
-                if genome == 'mm10':
-                    fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
-                if genome == 'mm10_ncbi':
-                    fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
-                if genome == 'hg19':
-                    fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
-                    bed = currFolder + 'Data/hg19/hg19.TCR.bed'
-                    mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
-
-                runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
+                if genome == "hg38":
+                    extra = "id.name"
+                else:
+                    extra = "gene.id"
+                fasta = currFolder + "Data/{0}/{0}.TCR.fa".format(genome)
+                bed = currFolder + "Data/{0}/{0}.TCR.bed".format(genome)
+                mapping = currFolder + "Data/{0}/{0}.{1}.mapping.TCR.txt".format(genome, extra)
+                aaF = currFolder + "Data/{0}/{0}.TCR.conserved.AA.txt".format(genome)
+                refInd = currFolder + "Data/{0}/index/{0}"(genome)
+                runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, 
+                              reconstruction, aaF , numIterations, thresholdScore,
+                              minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
-    sumFout = open(sumF + '.summary.txt','w')
-    sumFout.write('sample\talpha\tbeta\n')
+    sumFout = open(sumF + ".summary.txt", "w")
+    sumFout.write("sample\talpha\tbeta\n")
     for cell in sorted(finalStatDict):
-        fout = cell + '\t' + finalStatDict[cell]['alpha'] + '\t' + finalStatDict[cell]['beta'] + '\n'
+        fout = cell + "\t" + finalStatDict[cell]["alpha"] + "\t" + finalStatDict[cell]["beta"] + "\n"
         sumFout.write(fout)
     sumFout.close()
 
