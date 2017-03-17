@@ -26,29 +26,7 @@ def get_ave_read_length(filename):
 def is_paired_end(filename):
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
 
-# def get_mapped_reads(filename):
 
-
-# Not sure if I need this. -Gunjan
-# def get_unmapped_read_count_SE(bowtie2, refInd, fastq):
-#     subprocess.call(["bowtie2"])
-#     if bowtie2 != '':
-#         if bowtie2.endswith('/'):
-#             bowtieCall = bowtie2 + 'bowtie2'
-#         else:
-#             bowtieCall = bowtie2 + '/bowtie2'
-#     else:
-#         bowtieCall = 'bowtie2'
-#     temp = output + "unmapped.realigned.sam"
-#     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp])
-#     unmapped_read_count = int(subprocess.check_output(["samtools", "view", "-c", "-f", "4", temp], universal_newlines=True).strip())
-#     subprocess.call(["rm", temp])
-#     return unmapped_read_count
-
-
-
-#def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                 #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
 def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
@@ -332,35 +310,9 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
 def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
-    # lenArr = [25]
-    # for currLen in lenArr:
-        # if currLen == 999:
-        #     steps = ['none']
-        # else:
-        #     steps = ['left','right']
-        # for side in steps:
-        #     if side == 'left':
-        #         crop = 'CROP:' + str(currLen)
-        #     elif side == 'right':
-        #         crop = 'HEADCROP:' + str(currLen)
-        #     else:
-        #         crop = ''
-        # TODO: make sure we delete those files
-            # trimFq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
-            # TODO: use bowtie trimmer instead
-            # TODO: make sure about minus strand alignment
-
-            # Gunjan: replacing this part
-            # if crop == '':
-            #     subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', 'MINLEN:20'])
-            # else:
-            #     subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', crop, 'MINLEN:20'])
-            # print(["samtools", "bam2fq", unmapped, ">", unmapped + ".fq"])
+ 
     fastq = unmapped + ".fq"
     fastq2 = bam + ".fq"
-            # subprocess.call(["samtools", "bam2fq", "-s", fastq, unmapped])
-            
-            # subprocess.Popen(["samtools", "bam2fq", unmapped], stdout=open(fastq, "w"))
 
     sam = fastq + '.trimmed.sam'
     temp1 = sam + '.temp1'
@@ -414,79 +366,8 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
 
-
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
-
-
-    # junctionSegsAlpha = makeJunctionFile(bam, 'A', output, bases, vdjDict, fastaDict, idNameDict)
-    # junctionSegsBeta = makeJunctionFile(bam, 'B', output, bases, vdjDict, fastaDict, idNameDict)
-
-    # unDictAlpha = writeUnmappedReadsSingleEnd(bam, unmapped, junctionSegsAlpha, output, vdjDict, 'A', strand, lowQ)
-    # unDictBeta = writeUnmappedReadsSingleEnd(bam, unmapped, junctionSegsBeta, output, vdjDict, 'B', strand, lowQ)
-    # # sys.exit(1)
-    # return unDictAlpha, unDictBeta
-
-
-def writeUnmappedReadsSingleEnd(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ):
-    if chain == 'A':
-        vdjChainDict = vdjDict['Alpha']
-        outReads = output + '.alpha.mapped.and.unmapped.fa'
-    elif chain == 'B':
-        vdjChainDict = vdjDict['Beta']
-        outReads = output + '.beta.mapped.and.unmapped.fa'
-    else:
-        sys.stderr.write(str(datetime.datetime.now()) + ' Error! chain parameter for function analyzeChain can only be A or B\n')
-        sys.stderr.flush()
-    constDict = vdjChainDict['C']
-    # This dict for unmapped reads has reads that should be rev.comp in the revcomp arr, otherwise in id.
-    # For every read, the value is a tuple - the first value is first/second, to make sure there are no errors.
-    # The second value is id/revcomp, to see what sequence should be written.
-    # Note: This classification is about what should happen to the unmapped reads, not how their paired maaped
-    # reads were read.
-    unmappedDict = dict()
-    seqDict = dict()
-    alignedDict = dict()
-    mappedPairsDict = dict()
-    lowQDict = dict()
-    for seg in constDict:
-        (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, seg, bam, output, False, alignedDict, seqDict, strand, 'C', mappedPairsDict, lowQDict)
-    vSegs = vdjChainDict['V']
-    for vSeg in vSegs:
-        vSegName = vSeg.strip('\n').split('\t')[3]
-        if vSegName in junctionSegs:
-            (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, vSeg, bam, output, True, alignedDict, seqDict, strand, 'V', mappedPairsDict, lowQDict)
-    jSegs = vdjChainDict['J']
-    for jSeg in jSegs:
-        jSegName = jSeg.strip('\n').split('\t')[3]
-        if jSegName in junctionSegs:
-            (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, jSeg, bam, out, True, alignedDict, seqDict, strand, 'J', mappedPairsDict, lowQDict)
-    unDict = dict()
-
-    f = pysam.AlignmentFile(unmapped,"rb")
-    readsIter = f.fetch(until_eof = True)
-    for read in readsIter:
-        name = read.query_name
-        if name in unmappedDict:
-            unDictName = name
-            (strand , ori) = unmappedDict[name]
-            if (((strand == 'first') & (read.is_read2) ) | ((strand == 'second') & (read.is_read1))):
-                sys.stderr.write(str(datetime.datetime.now()) + ' Error! unmapped read is inconsistent regarding first/second read\n')
-                sys.stderr.flush()
-            else:
-                if strand == 'first' :
-                    name += '\\1'
-                    unDictName += '_1'
-                else:
-                    name += '\\2'
-                    unDictName += '_2'
-                if unDictName in unDict:
-                    sys.stderr.write(str(datetime.datetime.now()) + ' Error! unmapped read %s appear twice in unmapped bam file\n' % cName)
-                    sys.stderr.flush()
-                unDict[unDictName] = '1'               
-    f.close()
-    return (seqDict, unDict)
-
 
 
 def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
@@ -793,7 +674,6 @@ def addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaD
     return segDict
 
 
-
 def getRank(tcr, rsemDict, unRsemDict, isProd, noRsem):
     if isProd:
         currDict = rsemDict
@@ -860,8 +740,6 @@ def makeRsemDict(rsemF, cdrDict):
         l = f.readline()
     f.close()
     return (fDict,unDict)
-
-
 
 def findCDR3(fasta, aaDict, vdjFaDict):
     f = open(fasta, 'rU')
@@ -1119,8 +997,6 @@ def isLegal(subAA):
     return False
 
 
-
-
 def getNTseq(fullSeq):
     mod = len(fullSeq) % 3
     if mod != 0:
@@ -1128,40 +1004,6 @@ def getNTseq(fullSeq):
     else:
         fSeq = fullSeq.translate()
     return fSeq
-
-def findSeqAndLengthOfAA(aaSeq):
-    fLen = 0
-    fSeq = ''
-    startArr = []
-    stopArr = []
-    startM = aaSeq.find('M')
-    while startM != -1:
-        startArr.append(startM)
-        startM = aaSeq.find('M', startM + 1)
-    stopPos = aaSeq.find('*')
-    while stopPos != -1:
-        stopArr.append(stopPos)
-        stopPos = aaSeq.find('*', stopPos + 1)
-
-    if ((len(startArr) == 0) | (len(stopArr) == 0)):
-        return(fSeq,fLen)
-    for stP in startArr:
-        currStop = findStop(stP, stopArr)
-        if currStop == -1:
-            return (fSeq, fLen)
-        else:
-            currLen = currStop - stP
-            if currLen >= fLen:
-                fLen = currLen
-                fSeq = aaSeq[stP:currStop]
-    return fSeq
-
-
-def findStop(stP, stopArr):
-    for x in stopArr:
-        if x > stP:
-            return x
-    return -1
 
 
 def makeAADict(aaF):
@@ -1373,121 +1215,6 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
         outF.close()
 
 
-def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ):
-    junctionSegs = makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict)
-    unDict = writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ)
-    return unDict
-
-
-
-def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
-    mappedFile = pysam.AlignmentFile(bam,"rb")
-    if chain == 'A':
-        vdjChainDict = vdjDict['Alpha']
-        outName = output + '.alpha.junctions.txt'
-    elif chain == 'B':
-        vdjChainDict = vdjDict['Beta']
-        outName = output + '.beta.junctions.txt'
-    else:
-        sys.stderr.write(str(datetime.datetime.now()) + ' Error! chain parameter for function analyzeChain can only be A or B\n')
-        sys.stderr.flush()
-    jSegs = vdjChainDict['J']
-    vSegs = vdjChainDict['V']
-    vjSegs = []
-    for x in jSegs:
-        vjSegs.append(x)
-    for y in vSegs:
-        vjSegs.append(y)
-    vjReads = dict()
-    vjReads = loadReadsToDict(vjSegs, mappedFile, vjReads)
-    junctionSegs = writeJunctions(vjReads,outName, bases, fastaDict, idNameDict)
-    if len(junctionSegs) == 0:
-        sys.stdout.write(str(datetime.datetime.now()) + ' Did not find any V-J reads, searching for V-C and J-C reads:\n')
-        sys.stdout.flush()
-        cReads = dict()
-        cReads = loadReadsToDict(vdjChainDict['C'], mappedFile, cReads)
-        junctionSegs = writeJunctionsWithC(vjReads,outName, bases, fastaDict, idNameDict, cReads)
-    mappedFile.close()
-    return junctionSegs
-
-# Similar to "writeJunctionsWithC, only that instead of looking for V-J paired-reads, it looks for
-# V-C and J-C paired-reads
-# INPUT:
-#       vjReads - reads dict of the V and J segments created by loadReadsToDict
-#       outName - output name for junction file
-#       bases - number of bases to take from V and J for the junction
-#       fastaDict
-#       idNameDict
-#       cReads - reads dict of the C segments created by loadReadsToDict
-# OUTPUT:
-#        fArr - the V and J segments for which we found a junction for
-def writeJunctionsWithC(vjReads,outName, bases, fastaDict, idNameDict, cReads):
-    out = open(outName,'w')
-    fArr = []
-    vArr = []
-    jArr = []
-    for seg in vjReads:
-        if len(vjReads[seg]) > 0 :
-            for cSeg in cReads:
-                if (len(cReads[cSeg]) > 0) :
-                    if (len([val for val in vjReads[seg]['first'] if val in cReads[cSeg]['second']]) > 0) |\
-                                (len([val for val in vjReads[seg]['second'] if val in cReads[cSeg]['first']]) > 0) :
-                        if idNameDict[seg].find('J') != -1 :
-                            if seg not in jArr:
-                                jArr.append(seg)
-                        elif idNameDict[seg].find('V') != -1 :
-                            if seg not in vArr:
-                                vArr.append(seg)
-                        fArr.append(seg)
-    for vSeg in vArr:
-        for jSeg in jArr:
-            vSeqFa = fastaDict[vSeg]
-            jSeqFa = fastaDict[jSeg]
-            lenSeg = min(len(vSeqFa),len(jSeqFa))
-            if bases != -10:
-                if lenSeg < bases:
-                    sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
-                                        'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
-                    sys.stdout.flush()
-                else:
-                    lenSeg = bases
-            jTrim = jSeqFa[:lenSeg]
-            vTrim = vSeqFa[-1*lenSeg:]
-            junc = vTrim + jTrim
-            recordName = vSeg + '.' + jSeg + '(' + idNameDict[vSeg] + '-' + idNameDict[jSeg] + ')'
-            record = SeqRecord(Seq(junc,IUPAC.ambiguous_dna), id = recordName, description = '')
-            SeqIO.write(record,out,'fasta')
-    out.close()
-    return fArr
-
-
-# Load all the reads from a list of segments into a dictionary.
-# INPUT: segsDict: A dict, where the key is a segment, and the value is an array of bed entries of this segment
-#        mappedFile: Bam file of the mapped reaeds
-#       readDict: A dictionary. The keys are the segment name, the values is a dictionary 'first':[] and 'second':[]
-#                 where 'first' array holds the query name of R1's that overlap this segment, and 'second' holds the
-#                 query name of R2's that overlap the segment.
-def loadReadsToDict(segsDict, mappedFile, readDict):
-    for seg in segsDict:
-        lArr = seg.strip('\n').split('\t')
-        segName = lArr[3]
-        readDict[segName] = {'first':[],'second':[]}
-        lArr = seg.strip('\n').split('\t')
-        chr = lArr[0]
-        start = int(lArr[1])
-        end = int(lArr[2])
-        readsIter = mappedFile.fetch(chr, start-1, end+1)
-        for read in readsIter:
-            currName = read.query_name
-            if read.is_read1:
-                if currName not in readDict[segName]['first']:
-                    readDict[segName]['first'].append(currName)
-            elif read.is_read2:
-                if currName not in readDict[segName]['second']:
-                    readDict[segName]['second'].append(currName)
-    return readDict
-
-
 def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ):
     if chain == 'A':
         vdjChainDict = vdjDict['Alpha']
@@ -1607,6 +1334,7 @@ def writeSeqDict(seqDict, r1, r2):
             sys.stderr.flush()
     r1f.close()
     r2f.close()
+
 
 def write_unmapped_reads_to_dict_SE(unmapped):
     un_dict = {}
@@ -1759,43 +1487,6 @@ def toTakePair(segType, strand, readStrand):
     return True
 
 
-def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
-    out = open(outName,'w')
-    fArr = []
-    for seg in vjReads:
-        if idNameDict[seg].find('J') != -1 :
-            if len(vjReads[seg]) > 0 :
-                for sSeg in vjReads:
-                    if ((idNameDict[sSeg].find('V') != -1) & (len(vjReads[sSeg]) > 0)) :
-                        if (len([val for val in vjReads[seg]['first'] if val in vjReads[sSeg]['second']]) > 0) |\
-                                (len([val for val in vjReads[seg]['second'] if val in vjReads[sSeg]['first']]) > 0) :
-                            if seg not in fArr:
-                                fArr.append(seg)
-                            if sSeg not in fArr:
-                                fArr.append(sSeg)
-                            vSeq = fastaDict[sSeg]
-                            jSeq = fastaDict[seg]
-                            lenSeg = min(len(vSeq),len(jSeq))
-                            if bases != -10:
-                                if lenSeg < bases:
-                                    sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
-                                          'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
-                                    sys.stdout.flush()
-                                else:
-                                    lenSeg = bases
-                            jTrim = jSeq[:lenSeg]
-                            vTrim = vSeq[-1*lenSeg:]
-                            junc = vTrim + jTrim
-                            recordName = sSeg + '.' + seg + '(' + idNameDict[sSeg] + '-' + idNameDict[seg] + ')'
-                            record = SeqRecord(Seq(junc,IUPAC.ambiguous_dna), id = recordName, description = '')
-                            SeqIO.write(record,out,'fasta')
-    out.close()
-    return fArr
-
-
-
-
-
 # Create a dict {'Alpha':{'C':[bed],'V':[bed],'J':[bed]}, 'Beta':{'C':[],'V':[],'J':[]}}
 def makeVDJBedDict(bed,idNameDict):
     fDict = {'Alpha':{'C':[],'V':[],'J':[]}, 'Beta':{'C':[],'V':[],'J':[]}}
@@ -1822,9 +1513,6 @@ def makeVDJBedDict(bed,idNameDict):
         l = f.readline()
     f.close()
     return fDict
-
-
-
 
 
 # Creates a dictionary of ENSEMBL ID -> fasta sequence
@@ -1869,9 +1557,6 @@ def checkParameters(genome, strand, singleCell, path, sumF):
             sys.exit("when running on multiple cells you must include the -sumF parameter")
         if not os.path.isdir(path):
             sys.exit("%s path does not exists. Please check your -path parameter and run again" % path)
-
-
-
 
 
 
