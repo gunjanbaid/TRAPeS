@@ -89,14 +89,14 @@ def addCellToTCRsum(cellFolder, noutput, tcrFout):
             l = currOut.readline()
         currOut.close()
 
-def get_chain_message(stat):
+def get_chain_message(stat, msg):
     if stat == "Productive":
         return stat
-    if "Unproductive" in stat:
+    if "Unproductive" in stat and msg != "Productive":
         return "Unproductive"
-    if stat == "Failed reconstruction - reached maximum number of iterations":
+    if stat == "Failed reconstruction - reached maximum number of iterations" and msg == "None":
         return "Failed - reconstruction didn\'t converge"
-    if stat == "Failed reconstruction - V and J segment do not overlap":
+    if stat == "Failed reconstruction - V and J segment do not overlap" and msg == "None":
         return "Failed - V and J reconstruction don\'t overlap"
     return "None"
 
@@ -117,14 +117,13 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
             lArr = l.strip('\n').split('\t')
             chain = lArr[0]
             stat = lArr[1]
-
             msg = get_chain_message(stat)
             if chain == "alpha":
                 msgA = msg
             else:
                 msgB = msg
-
             l = currOut.readline()
+
         currOut.close()
         if msgA == 'None':
             alphaJunc = noutput + '.alpha.junctions.txt'
