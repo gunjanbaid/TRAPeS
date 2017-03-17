@@ -33,14 +33,15 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
         path = path + "/"
     finalStatDict = {}
     tcrFout = open(sumF + ".TCRs.txt", "w")
-    opened = False
+    tcrFout.write("cell\tChain\tStatus\tRank of TCR\tV\tJ\tC\tCDR3 NT\tCDR3 AA\t#reads in TCR\t#reads in CDR3\t#reads in V\t#reads in J\t#reads in C\t%unmapped reads used in the reconstruction\t# unmapped reads used in the reconstruction\t%unmapped reads in CDR3\t#unmapped reads in CDR3\tV ID\tJ ID\tC ID\n")
+
     for cellFolder in os.listdir(path):
         fullPath = path + cellFolder + "/"
         if os.path.exists(fullPath) and os.path.isdir(fullPath):
-            print(datetime.datetime.now()) + " Working on: " + cellFolder)
+            print(str(datetime.datetime.now()) + " Working on: " + cellFolder)
             found, nbam, nunmapped, noutput = formatFiles(fullPath, bam, unmapped, output)
             if not found:
-                print(str(datetime.datetime.now())
+                print(str(datetime.datetime.now()) +
                     " There is not a bam or unmapped file in\n"
                     "this folder, moving to the next folder.")
             else:
@@ -58,7 +59,8 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, 
                               reconstruction, aaF , numIterations, thresholdScore,
                               minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
-                opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
+
+                addCellToTCRsum(cellFolder, noutput, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + ".summary.txt", "w")
     sumFout.write("sample\talpha\tbeta\n")
@@ -68,29 +70,30 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     sumFout.close()
 
 
-def addCellToTCRsum(cellFolder, noutput, opened, tcrFout):
-    if os.path.isfile(noutput + '.summary.txt'):
-        currOut = open(noutput + '.summary.txt','r')
-        if not opened:
-            opened = True
-            head = currOut.readline()
-            head = 'cell\t' + head
-            tcrFout.write(head)
-        else:
-            currOut.readline()
+def addCellToTCRsum(cellFolder, noutput, tcrFout):
+    """
+    Adds the entries in a cell folder's .summary.txt file 
+    to the main .TCRs.txt file, which will contain information
+    from all files.
+    """
+    if os.path.isfile(noutput + ".summary.txt"):
+        currOut = open(noutput + ".summary.txt", "r")
+        # move past header
+        currOut.readline()
+
+        # first data line
         l = currOut.readline()
-        while l != '':
-            newL = cellFolder + '\t' + l
+        while l != "":
+            newL = cellFolder + "\t" + l
             tcrFout.write(newL)
             l = currOut.readline()
         currOut.close()
-    return opened
 
 def addToStatDict(noutput, cellFolder, finalStatDict):
     if cellFolder in finalStatDict:
-        print "Error! %s appear more than once in final stat dictionary" % cellFolder
-    finalStatDict[cellFolder] = {'alpha':'Failed - found V and J segments but wasn\'t able to extend them',
-                                 'beta':'Failed - found V and J segments but wasn\'t able to extend them'}
+        print("Error! {} appear more than once in final stat dictionary".format(cellFolder))
+    finalStatDict[cellFolder] = {"alpha":"Failed - found V and J segments but wasn\'t able to extend them",
+                                 "beta":"Failed - found V and J segments but wasn\'t able to extend them"}
     if os.path.isfile(noutput + '.summary.txt'):
         currOut = open(noutput + '.summary.txt','r')
         msgA = 'None'
