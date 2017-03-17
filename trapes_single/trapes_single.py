@@ -89,48 +89,41 @@ def addCellToTCRsum(cellFolder, noutput, tcrFout):
             l = currOut.readline()
         currOut.close()
 
+def get_chain_message(stat):
+    if stat == "Productive":
+        return stat
+    if "Unproductive" in stat:
+        return "Unproductive"
+    if stat == "Failed reconstruction - reached maximum number of iterations":
+        return "Failed - reconstruction didn\'t converge"
+    if stat == "Failed reconstruction - V and J segment do not overlap":
+        return "Failed - V and J reconstruction don\'t overlap"
+    return "None"
+
 def addToStatDict(noutput, cellFolder, finalStatDict):
     if cellFolder in finalStatDict:
         print("Error! {} appear more than once in final stat dictionary".format(cellFolder))
-    finalStatDict[cellFolder] = {"alpha":"Failed - found V and J segments but wasn\'t able to extend them",
-                                 "beta":"Failed - found V and J segments but wasn\'t able to extend them"}
-    if os.path.isfile(noutput + '.summary.txt'):
-        currOut = open(noutput + '.summary.txt','r')
-        msgA = 'None'
-        msgB = 'None'
+    failed_message = "Failed - found V and J segments but wasn\'t able to extend them"
+    finalStatDict[cellFolder] = {"alpha": failed_message,
+                                 "beta": failed_message}
+
+    if os.path.isfile(noutput + ".summary.txt"):
+        currOut = open(noutput + ".summary.txt", "r")
+        msgA = "None"
+        msgB = "None"
         currOut.readline()
         l = currOut.readline()
-        while l != '':
+        while l != "":
             lArr = l.strip('\n').split('\t')
             chain = lArr[0]
             stat = lArr[1]
-            if stat == 'Productive':
-                if chain == 'alpha':
-                    msgA = 'Productive'
-                else:
-                    msgB = 'Productive'
-            elif stat.startswith('Unproductive'):
-                if chain == 'alpha':
-                    if msgA != 'Productive':
-                        msgA = 'Unproductive'
-                else:
-                    if msgB != 'Productive':
-                        msgB = 'Unproductive'
-            elif stat.startswith('Failed reconstruction'):
-                if stat == 'Failed reconstruction - reached maximum number of iterations':
-                    if chain == 'alpha':
-                        if msgA == 'None':
-                            msgA = 'Failed - reconstruction didn\'t converge'
-                    else:
-                        if msgB == 'None':
-                            msgB = 'Failed - reconstruction didn\'t converge'
-                elif stat == 'Failed reconstruction - V and J segment do not overlap':
-                    if chain == 'alpha':
-                        if msgA == 'None':
-                            msgA = 'Failed - V and J reconstruction don\'t overlap'
-                    else:
-                        if msgB == 'None':
-                            msgB = 'Failed - V and J reconstruction don\'t overlap'
+
+            msg = get_chain_message(stat)
+            if chain == "alpha":
+                msgA = msg
+            else:
+                msgB = msg
+
             l = currOut.readline()
         currOut.close()
         if msgA == 'None':
