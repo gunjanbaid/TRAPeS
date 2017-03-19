@@ -100,6 +100,12 @@ def get_chain_message(stat, msg):
         return "Failed - V and J reconstruction don\'t overlap"
     return "None"
 
+def update_chain_message(junctions):
+    if os.path.isfile(junctions) == True and os.stat(junctions).st_size != 0:
+        return "Failed - found V and J segments but wasn\'t able to extend them"
+    else:
+        return "Failed - didn\'t find any V and J segments in original mapping"
+
 def addToStatDict(noutput, cellFolder, finalStatDict):
     if cellFolder in finalStatDict:
         print("Error! {} appear more than once in final stat dictionary".format(cellFolder))
@@ -107,6 +113,8 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
     finalStatDict[cellFolder] = {"alpha": failed_message,
                                  "beta": failed_message}
 
+    alphaJunc = noutput + '.alpha.junctions.txt'
+    betaJunc = noutput + '.beta.junctions.txt'
     if os.path.isfile(noutput + ".summary.txt"):
         currOut = open(noutput + ".summary.txt", "r")
         msgA = "None"
@@ -115,8 +123,7 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
         l = currOut.readline()
         while l != "":
             lArr = l.strip('\n').split('\t')
-            chain = lArr[0]
-            stat = lArr[1]
+            chain, stat = lArr[0], lArr[1]
             msg = get_chain_message(stat)
             if chain == "alpha":
                 msgA = msg
@@ -126,27 +133,11 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
 
         currOut.close()
         if msgA == 'None':
-            alphaJunc = noutput + '.alpha.junctions.txt'
-            if (os.path.isfile(alphaJunc) == True):
-                if os.stat(alphaJunc).st_size == 0:
-                    msgA = 'Failed - didn\'t find any V and J segments in original mapping'
-                else:
-                    msgA = 'Failed - found V and J segments but wasn\'t able to extend them'
-            else:
-                msgA = 'Failed - didn\'t find any V and J segments in original mapping'
+            msgA = update_chain_message(alphaJunc)
         if msgB == 'None':
-            betaJunc = noutput + '.beta.junctions.txt'
-            if (os.path.isfile(betaJunc) == True):
-                if os.stat(betaJunc).st_size == 0:
-                    msgB = 'Failed - didn\'t find any V and J segments in original mapping'
-                else:
-                    msgB = 'Failed - found V and J segments but wasn\'t able to extend them'
-            else:
-                msgB = 'Failed - didn\'t find any V and J segments in original mapping'
-
+            msgB = update_chain_message(betaJunc)
     else:
-        betaJunc = noutput + '.beta.junctions.txt'
-        alphaJunc = noutput + '.alpha.junctions.txt'
+        # Can else case be added here, to generalize with update_chain_message()?
         if os.path.isfile(betaJunc) == True:
             # What about else cases here???
             if os.stat(betaJunc).st_size == 0:
@@ -159,29 +150,28 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
         else:
             msgA = 'Failed - didn\'t find any V and J segments in original mapping'
 
-    finalStatDict[cellFolder]['alpha'] = msgA
-    finalStatDict[cellFolder]['beta'] = msgB
+    finalStatDict[cellFolder]["alpha"] = msgA
+    finalStatDict[cellFolder]["beta"] = msgB
     return finalStatDict
 
 
+def format_path(full_path="", file_name):
+    if file_name.startswith("/"):
+        return full_path + file_name[1:]
+    if file_name.startswith("./"):
+        return full_path + file_name[2:]
+    return full_path + file_name
+
 def formatFiles(fullPath, bam, unmapped, output):
     found = True
-    nbam = fullPath + bam
-    if bam.startswith('/'):
-        nbam = fullPath + bam[1:]
-    elif bam.startswith('./'):
-        nbam = fullPath + bam[2:]
-    nunmapped = fullPath + unmapped
-    if unmapped.startswith('/'):
-        nunmapped = fullPath + unmapped[1:]
-    if unmapped.startswith('./'):
-        nunmapped = fullPath + unmapped[2:]
-    if ((os.path.isfile(nunmapped)) & (os.path.isfile(nbam))):
+    nbam = format_path(fullPath, bam)
+    nunmapped = format_path(fullPath, unmapped)
+    if os.path.isfile(nunmapped) and os.path.isfile(nbam):
         noutput = makeOutputDir(output, fullPath)
     else:
         noutput = output
         found = False
-    return (found, nbam, nunmapped, noutput)
+    return found, nbam, nunmapped, noutput
 
 def makeOutputDir(output, fullPath):
     noutput = output
@@ -194,7 +184,7 @@ def makeOutputDir(output, fullPath):
     if output.find('/') != -1:
         outArr = noutput.split('/')
         currPath = fullPath
-        for i in range(0,len(outArr)-1):
+        for i in range(0, len(outArr)-1):
             currPath = currPath + outArr[i] + '/'
             if not os.path.exists(currPath):
                 os.makedirs(currPath)
@@ -202,43 +192,43 @@ def makeOutputDir(output, fullPath):
     return noutput
 
 
-def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools, refInd):
+def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, 
+                  reconstruction, aaF, numIterations, thresholdScore, 
+                  minOverlap, rsem, bowtie2, lowQ, samtools, refInd):
+
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
-
 
     ave_length = get_ave_read_length(unmapped)
     paired_end = is_paired_end(bam)
     print("average length " + str(ave_length))
 
     if paired_end:
-        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-        sys.stdout.flush()
-        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
-        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
-        sys.stdout.flush()
-        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
+        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                   bases, 'A', strand, lowQ)
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                  bases, 'B', strand, lowQ)
     else:
-        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-        sys.stdout.flush()
-        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
-        sys.stdout.flush()
-        analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd)    
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
+                              strand, lowQ, bowtie2, refInd)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = unDictAlpha
     
-    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
-    sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
-        output + '.reconstructed.junctions.alpha.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
-    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
-    sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
+    print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
+    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
+                     output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
+                     str(numIterations), str(thresholdScore), str(minOverlap)])
+    print(str(datetime.datetime.now()) + " Reconstructing beta chains")
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', 
+                     output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', 
+                     str(numIterations), str(thresholdScore), str(minOverlap)])
     
-    sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
-    sys.stdout.flush()
+    print(str(datetime.datetime.now()) + " Creating full TCR sequencing")
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.alpha.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict)
@@ -246,8 +236,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     tcrF = output + '.reconstructed.junctions.beta.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
     
-    sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
-    sys.stdout.flush()
+    print(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     outDirInd = output.rfind('/')
     if outDirInd != -1:
         outDir = output[:outDirInd+1]
@@ -257,32 +246,31 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
-    sys.stdout.write(str(datetime.datetime.now()) + " Finding productive CDR3\n")
+    sys.stdout.write(str(datetime.datetime.now()) + " Finding productive CDR3")
     sys.stdout.flush()
     aaDict = makeAADict(aaF)
+
+    fDictAlpha, fDictBeta = {}, {}
     if os.path.isfile(bestAlpha):
-        fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict )
-    else:
-        fDictAlpha = dict()
+        fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict)
     if os.path.isfile(bestBeta):
-        fDictBeta = findCDR3(bestBeta, aaDict, fastaDict )
-    else:
-        fDictBeta = dict()
+        fDictBeta = findCDR3(bestBeta, aaDict, fastaDict)
+
     betaRsemOut = output + '.beta.rsem.out.genes.results'
     alphaRsemOut = output + '.alpha.rsem.out.genes.results'
     alphaBam = output + '.alpha.rsem.out.transcript.sorted.bam'
     betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
-    sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
+    print(str(datetime.datetime.now()) + " Writing results to summary file")
     sys.stdout.flush()
 
     # no modifications to unDictAlpha/unDictBeta after this point,
     # just checking its contents
+    makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, 
+                             alphaBam, betaBam, fastaDict, unDictAlpha, unDictBeta, idNameDict)
 
-    makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
-                             unDictAlpha, unDictBeta, idNameDict)
 
-
-def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, lowQ, bowtie2, refInd):
+def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
+                          lowQ, bowtie2, refInd):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
  
