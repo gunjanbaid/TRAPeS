@@ -55,7 +55,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                 bed = currFolder + "Data/{0}/{0}.TCR.bed".format(genome)
                 mapping = currFolder + "Data/{0}/{0}.{1}.mapping.TCR.txt".format(genome, extra)
                 aaF = currFolder + "Data/{0}/{0}.TCR.conserved.AA.txt".format(genome)
-                refInd = currFolder + "Data/{0}/index/{0}"(genome)
+                refInd = currFolder + "Data/{0}/index/{0}".format(genome)
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, 
                               reconstruction, aaF , numIterations, thresholdScore,
                               minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
@@ -92,13 +92,15 @@ def addCellToTCRsum(cellFolder, noutput, tcrFout):
 def get_chain_message(stat, msg):
     if stat == "Productive":
         return stat
-    if "Unproductive" in stat and msg != "Productive":
+    # Gunjan - Why does unproductive take priority? Sometimes, 
+    # unproductive for when only J found. 
+    if stat.startswith("Unproductive") and msg != "Productive":
         return "Unproductive"
     if stat == "Failed reconstruction - reached maximum number of iterations" and msg == "None":
         return "Failed - reconstruction didn\'t converge"
     if stat == "Failed reconstruction - V and J segment do not overlap" and msg == "None":
         return "Failed - V and J reconstruction don\'t overlap"
-    return "None"
+
 
 def update_chain_message(junctions):
     if os.path.isfile(junctions) == True and os.stat(junctions).st_size != 0:
@@ -110,9 +112,7 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
     if cellFolder in finalStatDict:
         print("Error! {} appear more than once in final stat dictionary".format(cellFolder))
     failed_message = "Failed - found V and J segments but wasn\'t able to extend them"
-    finalStatDict[cellFolder] = {"alpha": failed_message,
-                                 "beta": failed_message}
-
+    finalStatDict[cellFolder] = {"alpha": failed_message, "beta": failed_message}
     alphaJunc = noutput + '.alpha.junctions.txt'
     betaJunc = noutput + '.beta.junctions.txt'
     if os.path.isfile(noutput + ".summary.txt"):
@@ -121,15 +121,18 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
         msgB = "None"
         currOut.readline()
         l = currOut.readline()
-        while l != "":
+        while l != '':
             lArr = l.strip('\n').split('\t')
-            chain, stat = lArr[0], lArr[1]
-            msg = get_chain_message(stat)
+            chain = lArr[0]
+            stat = lArr[1]
+            
+            # only update the message if get_chain_message() doesn't return None
             if chain == "alpha":
-                msgA = msg
+                msgA = get_chain_message(stat, msgA) or msgA
             else:
-                msgB = msg
+                msgB = get_chain_message(stat, msgB) or msgB
             l = currOut.readline()
+
 
         currOut.close()
         if msgA == 'None':
@@ -155,7 +158,7 @@ def addToStatDict(noutput, cellFolder, finalStatDict):
     return finalStatDict
 
 
-def format_path(full_path="", file_name):
+def format_path(full_path, file_name):
     if file_name.startswith("/"):
         return full_path + file_name[1:]
     if file_name.startswith("./"):
@@ -173,18 +176,15 @@ def formatFiles(fullPath, bam, unmapped, output):
         found = False
     return found, nbam, nunmapped, noutput
 
+
 def makeOutputDir(output, fullPath):
-    noutput = output
-    if output.startswith('/'):
-        noutput = output[1:]
-    if output.startswith('./'):
-        noutput = output[2:]
+    noutput = format_path("", output)
     if output.endswith('/'):
         noutput = output[:-1]
     if output.find('/') != -1:
         outArr = noutput.split('/')
         currPath = fullPath
-        for i in range(0, len(outArr)-1):
+        for i in range(len(outArr)-1):
             currPath = currPath + outArr[i] + '/'
             if not os.path.exists(currPath):
                 os.makedirs(currPath)
@@ -195,7 +195,6 @@ def makeOutputDir(output, fullPath):
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, 
                   reconstruction, aaF, numIterations, thresholdScore, 
                   minOverlap, rsem, bowtie2, lowQ, samtools, refInd):
-
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
@@ -205,15 +204,15 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     print("average length " + str(ave_length))
 
     if paired_end:
-        print(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
                                    bases, 'A', strand, lowQ)
-        print(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
         unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
                                   bases, 'B', strand, lowQ)
     else:
-        print(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-        print(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
         analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
                               strand, lowQ, bowtie2, refInd)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
@@ -236,7 +235,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     tcrF = output + '.reconstructed.junctions.beta.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
     
-    print(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
+    print(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms")
     outDirInd = output.rfind('/')
     if outDirInd != -1:
         outDir = output[:outDirInd+1]
@@ -246,10 +245,9 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
-    sys.stdout.write(str(datetime.datetime.now()) + " Finding productive CDR3")
-    sys.stdout.flush()
+    
+    print(str(datetime.datetime.now()) + " Finding productive CDR3")
     aaDict = makeAADict(aaF)
-
     fDictAlpha, fDictBeta = {}, {}
     if os.path.isfile(bestAlpha):
         fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict)
@@ -261,7 +259,6 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     alphaBam = output + '.alpha.rsem.out.transcript.sorted.bam'
     betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
     print(str(datetime.datetime.now()) + " Writing results to summary file")
-    sys.stdout.flush()
 
     # no modifications to unDictAlpha/unDictBeta after this point,
     # just checking its contents
@@ -348,13 +345,13 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
             SeqIO.write(newRec,out,'fasta')
             seen.append(record.seq)
     fqF.close()
-    # fqF2 = open(fastq2, 'rU')
-    # for record in SeqIO.parse(fqF2, 'fastq'):
-    #     if record.id in mappedReadsDict and record.seq not in seen:
-    #         newRec = SeqRecord(record.seq, id = record.id, description = '')
-    #         SeqIO.write(newRec,out,'fasta')
-    #         seen.append(record.seq)
-    # fqF2.close()
+    fqF2 = open(fastq2, 'rU')
+    for record in SeqIO.parse(fqF2, 'fastq'):
+        if record.id in mappedReadsDict and record.seq not in seen:
+            newRec = SeqRecord(record.seq, id = record.id, description = '')
+            SeqIO.write(newRec,out,'fasta')
+            seen.append(record.seq)
+    fqF2.close()
     out.close()
     if fastq.endswith('.gz'):
         subprocess.call(['gzip',newFq])
@@ -1178,51 +1175,6 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
         outF.close()
 
 
-def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ):
-    if chain == 'A':
-        vdjChainDict = vdjDict['Alpha']
-        outReads = output + '.alpha.mapped.and.unmapped.fa'
-        pairedReads1 = output + '.alpha.R1.fa'
-        pairedReads2 = output + '.alpha.R2.fa'
-    elif chain == 'B':
-        vdjChainDict = vdjDict['Beta']
-        outReads = output + '.beta.mapped.and.unmapped.fa'
-        pairedReads1 = output + '.beta.R1.fa'
-        pairedReads2 = output + '.beta.R2.fa'
-    else:
-        sys.stderr.write(str(datetime.datetime.now()) + ' Error! chain parameter for function analyzeChain can only be A or B\n')
-        sys.stderr.flush()
-    out = open(outReads, 'w')
-    constDict = vdjChainDict['C']
-    # This dict for unmapped reads has reads that should be rev.comp in the revcomp arr, otherwise in id.
-    # For every read, the value is a tuple - the first value is first/second, to make sure there are no errors.
-    # The second value is id/revcomp, to see what sequence should be written.
-    # Note: This classification is about what should happen to the unmapped reads, not how their paired maaped
-    # reads were read.
-    unmappedDict = dict()
-    seqDict = dict()
-    alignedDict = dict()
-    mappedPairsDict = dict()
-    lowQDict = dict()
-    for seg in constDict:
-        (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, seg, bam, out, False, alignedDict, seqDict, strand, 'C', mappedPairsDict, lowQDict)
-    vSegs = vdjChainDict['V']
-    for vSeg in vSegs:
-        vSegName = vSeg.strip('\n').split('\t')[3]
-        if vSegName in junctionSegs:
-            (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, vSeg, bam, out, True, alignedDict, seqDict, strand, 'V', mappedPairsDict, lowQDict)
-    jSegs = vdjChainDict['J']
-    for jSeg in jSegs:
-        jSegName = jSeg.strip('\n').split('\t')[3]
-        if jSegName in junctionSegs:
-            (unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict) = addReadsToDict(unmappedDict, jSeg, bam, out, True, alignedDict, seqDict, strand, 'J', mappedPairsDict, lowQDict)
-    unDict = dict()
-    (seqDict,unDict) = writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ)
-    seqDict = addMappedPairsToSeqDict(seqDict, bam, out, lowQ, alignedDict)
-    writeSeqDict(seqDict, pairedReads1, pairedReads2)
-    out.close()
-    return unDict
-
 def addMappedPairsToSeqDict(seqDict, bam, out, lowQ, alignedDict):
     firstDict = dict()
     secondDict = dict()
@@ -1356,64 +1308,6 @@ def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict
     f.close()
     return (seqDict, unDict)
 
-# Aligned dict - all the reads (with _1/_2) that were already written to the mapped.unmapped.fa file
-def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqDict, strand, segType, mappedPairsDict, lowQDict):
-    bedArr = segBed.strip('\n').split('\t')
-    chr = bedArr[0]
-    start = int(bedArr[1])
-    end = int(bedArr[2])
-    mappedFile = pysam.AlignmentFile(bam,"rb")
-    readsIter = mappedFile.fetch(chr, start-1, end+1)
-    for read in readsIter:
-        currName = read.query_name
-        if currName not in seqDict:
-            seqDict[currName] = ['0','1']
-        if read.is_read1:
-            pairRead = 'second'
-            readName = currName + '\\1'
-            pairName = currName + '\\2'
-            seqPos = 0
-        elif read.is_read2:
-            pairRead = 'first'
-            readName = currName + '\\2'
-            pairName = currName + '\\1'
-            seqPos = 1
-        else:
-            sys.stderr.write(str(datetime.datetime.now()) + ' Error! Read is not read1 and not read2\n')
-            sys.stderr.flush()
-        currSeq = Seq(read.query_sequence,IUPAC.ambiguous_dna)
-        if read.is_reverse:
-            pairOr = 'id'
-            readStrand = 'minus'
-            currSeq = currSeq.reverse_complement()
-        else:
-            readStrand = 'plus'
-            pairOr = 'rev'
-        seqDict[currName][seqPos] = currSeq
-        if read.mate_is_unmapped:
-            takePair = toTakePair(segType, strand, readStrand)
-            if takePair == False:
-                lowQDict[pairName] = '1'
-            #takePair = True
-            #if takePair:
-            if currName in unmappedDict:
-                if unmappedDict[currName] != (pairRead, pairOr):
-                    sys.stderr.write(str(datetime.datetime.now()) + ' Error! Read %s has more than one unmppaed mate with differnet strand/mate\n' % currName)
-                    sys.stderr.flush()
-            unmappedDict[currName] = (pairRead, pairOr)
-        if mappedRead == True :
-            if readName in alignedDict:
-                if alignedDict[readName] != read.query_sequence:
-                    sys.stderr.write(str(datetime.datetime.now()) + ' Error! Read %s has two instances but different seuqences\n' % read.query_name)
-                    sys.stderr.flush()
-            else:
-                alignedDict[readName] = read.query_sequence
-                record = SeqRecord(Seq(read.query_sequence, IUPAC.ambiguous_dna), id = readName, description = '')
-                SeqIO.write(record,out,'fasta')
-    mappedFile.close()
-    #print "Removed counter: " + str(cc)
-    return(unmappedDict, alignedDict, seqDict, mappedPairsDict, lowQDict)
-
 
 ### For minus, add an unmapped pair if the current mate is: 1. V and Plus 2. J/C and minus
 ### For plus, exactly the opposite
@@ -1421,11 +1315,10 @@ def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqD
 def toTakePair(segType, strand, readStrand):
     if strand == 'none':
         return True
-    if ((readStrand != 'minus') & (readStrand != 'plus')):
-        sys.stderr.write(str(datetime.datetime.now()) + ' Error! Read strand should be plus or minus only\n')
-        sys.stderr.flush()
+    if readStrand != 'minus' and readStrand != 'plus':
+        print(str(datetime.datetime.now()) + ' Error! Read strand should be plus or minus only')
         return True
-    if ((segType == 'C') | (segType == 'J')):
+    if segType == 'C' or segType == 'J':
         if strand == 'minus':
             if readStrand == 'minus':
                 return True
@@ -1460,13 +1353,12 @@ def makeVDJBedDict(bed,idNameDict):
         gID = lArr[3]
         gName = idNameDict[gID]
         chain = ''
-        if (gName.startswith('TRA')):
+        if gName.startswith('TRA'):
             chain = 'Alpha'
-        elif (gName.startswith('TRB')):
+        elif gName.startswith('TRB'):
             chain = 'Beta'
         else:
-            sys.stderr.write(str(datetime.datetime.now()) + ' Error! %s name is not alpha or beta chain, ignoring it\n' % gName)
-            sys.stderr.flush()
+            print(str(datetime.datetime.now()) + ' Error! {} name is not alpha or beta chain, ignoring it'.format(gName))
         if gName.find('C') != -1:
             fDict[chain]['C'].append(l)
         elif gName.find('V') != -1:
@@ -1509,7 +1401,7 @@ def makeIdNameDict(mapping):
 
 
 def checkParameters(genome, strand, singleCell, path, sumF):
-    if ((genome != 'hg38') & (genome != 'mm10') & (genome != 'hg19') & (genome != 'mm10_ncbi')):
+    if genome != 'hg38' and genome != 'mm10' and genome != 'hg19' and genome != 'mm10_ncbi':
         sys.exit("-genome only accept one of the following: mm10, mm10_ncbi, hg38, hg19")
     if strand.lower() not in ['none','minus','plus']:
         sys.exit("-strand should be one of: none, minus, plus")
