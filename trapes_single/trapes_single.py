@@ -22,7 +22,7 @@ def get_ave_read_length(filename):
 def is_paired_end(filename):
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
 
-def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
+def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
@@ -58,7 +58,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                 refInd = currFolder + "Data/{0}/index/{0}".format(genome)
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, 
                               reconstruction, aaF , numIterations, thresholdScore,
-                              minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
+                              minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim)
 
                 addCellToTCRsum(cellFolder, noutput, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
@@ -194,7 +194,7 @@ def makeOutputDir(output, fullPath):
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, 
                   reconstruction, aaF, numIterations, thresholdScore, 
-                  minOverlap, rsem, bowtie2, lowQ, samtools, refInd):
+                  minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim):
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
@@ -214,7 +214,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
         analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
-                              strand, lowQ, bowtie2, refInd)    
+                              strand, lowQ, bowtie2, refInd, trim)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = unDictAlpha
     
@@ -267,7 +267,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
 
 
 def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
-                          lowQ, bowtie2, refInd):
+                          lowQ, bowtie2, refInd, trim):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
  
@@ -296,8 +296,9 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
         fastq2_file.close()
 
     # need fastq format of unmapped.bam here
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", "25"])
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", "25"])
+    # change this to use trim length as a parameter too
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
     subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
 
     sam_filtered = output + ".trimmed.filtered.sam"
@@ -310,7 +311,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
 
     if os.path.isfile(sam_filtered):
         mappedReadsDictAlpha = findReadsAndSegments(sam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
-        mappedReadsDictBeta = findReadsAndSegments(sam_filtered, mappedReadsDictAlpha, idNameDict, 'B')
+        mappedReadsDictBeta = findReadsAndSegments(sam_filtered, mappedReadsDictBeta, idNameDict, 'B')
 
     # adding originally mapped reads to dictionaries
     sam_mapped = output + ".sorted.sam"
@@ -343,14 +344,14 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
         if record.id in mappedReadsDict and record.seq not in seen:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
-            seen.append(record.seq)
+            # seen.append(record.seq)
     fqF.close()
     fqF2 = open(fastq2, 'rU')
     for record in SeqIO.parse(fqF2, 'fastq'):
         if record.id in mappedReadsDict and record.seq not in seen:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
-            seen.append(record.seq)
+            # seen.append(record.seq)
     fqF2.close()
     out.close()
     if fastq.endswith('.gz'):
@@ -409,6 +410,7 @@ def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
         cSeq = ''
     jcSeq = jSeq + cSeq
     lenSeg = min(len(vSeq),len(jcSeq))
+    print("-------------", len(vSeq),len(jcSeq), "-----------")
     if bases != -10:
         if lenSeg < bases:
             sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
@@ -454,7 +456,8 @@ def findReadsAndSegments(samF, mappedReadsDict, idNameDict, chain):
                     if readName not in mappedReadsDict:
                         mappedReadsDict[readName] = []
                     if seg not in mappedReadsDict[readName]:
-                        mappedReadsDict[readName].append(seg)
+                        if chain in idNameDict[seg]:
+                            mappedReadsDict[readName].append(seg)
     samFile.close()
     return mappedReadsDict
 
@@ -1129,6 +1132,7 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
             jSeq = fastaDict[jEns]
             vSeqTrim = ''
             jSeqTrim = ''
+            print("**************", len(vSeq), len(jSeq), "**************")
             if bases == -10:
                 bases = min(len(vSeq), len(jSeq))
             found = False
@@ -1441,7 +1445,8 @@ if __name__ == '__main__':
     parser.add_argument('-score','-sc','-SC', help='Alignment score threshold. Default is 15', type=int, default=15)
     parser.add_argument('-overlap','-ol','-OL', help='Number of minimum bases that overlaps V and J ends,'
                                                               'default is 10', type=int, default=10)
+    parser.add_argument('-trim', help='The number of bases to trim from each end of a sigle-end read.', type=int, default=25)
     args = parser.parse_args()
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
-                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools)
+                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools, args.trim)
