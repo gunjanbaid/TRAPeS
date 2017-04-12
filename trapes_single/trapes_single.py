@@ -45,8 +45,9 @@ def is_paired_end(filename):
     """
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
 
-def run_TCR_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, threshold_score, 
-    min_overlap, rsem, bowtie2, single_cell, path, sumF, lowQ, samtools, trim):
+# def run_TCR_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, threshold_score, 
+#     min_overlap, rsem, bowtie2, single_cell, path, sumF, lowQ, samtools, trim):
+def run_TCR_pipe():
     """
     Parameters
     ----------
@@ -55,49 +56,49 @@ def run_TCR_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
     -------
 
     """
-    print("~" * 100)
-    print(args.genome)
-
-    check_parameters(genome, strand, single_cell, path, sumF)
-    if single_cell == True:
+    check_parameters(args.genome, args.strand, args.single_cell, args.path, args.sumF)
+    if args.single_cell == True:
         # TODO: Fix this, won't work for SE
         sys.exit(0)
+    path = args.path
     if path == "./":
         path = os.getcwd()
     if not path.endswith("/"):
         path = path + "/"
     final_stat_dict = {}
-    tcrFout = open(sumF + ".TCRs.txt", "w")
+    tcrFout = open(args.sumF + ".TCRs.txt", "w")
     tcrFout.write("cell\tChain\tStatus\tRank of TCR\tV\tJ\tC\tCDR3 NT\tCDR3 AA\t#reads in TCR\t#reads in CDR3\t#reads in V\t#reads in J\t#reads in C\t%unmapped reads used in the reconstruction\t# unmapped reads used in the reconstruction\t%unmapped reads in CDR3\t#unmapped reads in CDR3\tV ID\tJ ID\tC ID\n")
 
     for cell_folder in os.listdir(path):
         full_path = path + cell_folder + "/"
         if os.path.exists(full_path) and os.path.isdir(full_path):
             print(str(datetime.datetime.now()) + " Working on: " + cell_folder)
-            found, nbam, nunmapped, noutput = format_files(full_path, bam, unmapped, output)
+            found, nbam, nunmapped, noutput = format_files(full_path, args.bam, args.unmapped, args.output)
             if not found:
                 print(str(datetime.datetime.now()) +
                     " There is not a bam or unmapped file in\n"
                     "this folder, moving to the next folder.")
             else:
+                # what's sys.argv[0]?
                 curr_folder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
                 reconstruction = curr_folder + '/vdj.alignment'
-                if genome == "hg38":
+                if args.genome == "hg38":
                     extra = "id.name"
                 else:
                     extra = "gene.id"
-                fasta = curr_folder + "Data/{0}/{0}.TCR.fa".format(genome)
-                bed = curr_folder + "Data/{0}/{0}.TCR.bed".format(genome)
-                mapping = curr_folder + "Data/{0}/{0}.{1}.mapping.TCR.txt".format(genome, extra)
-                aaF = curr_folder + "Data/{0}/{0}.TCR.conserved.AA.txt".format(genome)
-                ref_ind = curr_folder + "Data/{0}/index/{0}".format(genome)
-                run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, 
-                              reconstruction, aaF , num_iterations, threshold_score,
-                              min_overlap, rsem, bowtie2, lowQ, samtools, ref_ind, trim)
+                fasta = curr_folder + "Data/{0}/{0}.TCR.fa".format(args.genome)
+                bed = curr_folder + "Data/{0}/{0}.TCR.bed".format(args.genome)
+                mapping = curr_folder + "Data/{0}/{0}.{1}.mapping.TCR.txt".format(args.genome, extra)
+                aaF = curr_folder + "Data/{0}/{0}.TCR.conserved.AA.txt".format(args.genome)
+                ref_ind = curr_folder + "Data/{0}/index/{0}".format(args.genome)
 
+                run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, args.bases, args.strand, 
+                              reconstruction, aaF , args.iterations, args.score,
+                              args.overlap, args.rsem, args.bowtie2, args.lowQ, args.samtools, ref_ind, args.trim)
                 add_cell_to_TCR_sum(cell_folder, noutput, tcrFout)
                 final_stat_dict = add_to_stat_dict(noutput, cell_folder, final_stat_dict)
-    sumFout = open(sumF + ".summary.txt", "w")
+
+    sumFout = open(args.sumF + ".summary.txt", "w")
     sumFout.write("sample\talpha\tbeta\n")
     for cell in sorted(final_stat_dict):
         fout = cell + "\t" + final_stat_dict[cell]["alpha"] + "\t" + final_stat_dict[cell]["beta"] + "\n"
@@ -1728,8 +1729,8 @@ def check_parameters(genome, strand, single_cell, path, sumF):
         if not os.path.isdir(path):
             sys.exit("%s path does not exists. Please check your -path parameter and run again" % path)
 
-def main(args):
-    run_TCR_pipe(args)
+def main():
+    run_TCR_pipe()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -1759,4 +1760,4 @@ if __name__ == '__main__':
                                                               'default is 10', type=int, default=10)
     parser.add_argument('-trim', help='The number of bases to trim from each end of a sigle-end read.', type=int, default=25)
     args = parser.parse_args()
-    main(args)
+    main()
