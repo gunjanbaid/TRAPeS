@@ -344,8 +344,7 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, reconstruction, 
     else:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
-        analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, args.bases, 
-                              args.strand, args.lowQ, args.bowtie2, ref_ind, args.trim)    
+        analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, ref_ind)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = unDictAlpha
     # import pdb; pdb.set_trace()
@@ -398,8 +397,7 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, reconstruction, 
                              alphaBam, betaBam, fastaDict, unDictAlpha, unDictBeta, idNameDict)
 
 
-def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
-                          lowQ, bowtie2, ref_ind, trim):
+def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, ref_ind):
     """
     Parameters
     ----------
@@ -419,11 +417,11 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
     temp1 = sam + '.temp1'
     temp2 = sam + '.temp2'
 
-    if bowtie2 != '':
-        if bowtie2.endswith('/'):
-            bowtieCall = bowtie2 + 'bowtie2'
+    if args.bowtie2 != '':
+        if args.bowtie2.endswith('/'):
+            bowtieCall = args.bowtie2 + 'bowtie2'
         else:
-            bowtieCall = bowtie2 + '/bowtie2'
+            bowtieCall = args.bowtie2 + '/bowtie2'
     else:
         bowtieCall = 'bowtie2'
 
@@ -438,8 +436,8 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
 
     # need fastq format of unmapped.bam here
     # change this to use trim length as a parameter too
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', ref_ind, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', ref_ind, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', ref_ind, '-U', fastq, '-S', temp1, "--trim3", str(args.trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', ref_ind, '-U', fastq, '-S', temp2, "--trim5", str(args.trim)])
     subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
 
     sam_filtered = output + ".trimmed.filtered.sam"
@@ -465,8 +463,8 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
-    write_junction_file_SE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
-    write_junction_file_SE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
+    write_junction_file_SE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, 'alpha')
+    write_junction_file_SE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, 'beta')
 
     write_reads_file_SE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
     write_reads_file_SE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
@@ -513,7 +511,7 @@ def write_reads_file_SE(mappedReadsDict, outReads, fastq, fastq2):
 
 
 
-def write_junction_file_SE(mappedReadsDict,idNameDict, output, fastaDict, bases, chain):
+def write_junction_file_SE(mappedReadsDict,idNameDict, output, fastaDict, chain):
     """
     Parameters
     ----------
@@ -556,12 +554,12 @@ def write_junction_file_SE(mappedReadsDict,idNameDict, output, fastaDict, bases,
         for vSeg in vSegs:
             for jSeg in jSegs:
                 for cSeg in cSegs:
-                    add_segment_to_junction_file_SE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict)
+                    add_segment_to_junction_file_SE(vSeg, jSeg, cSeg, out, fastaDict, idNameDict)
     out.close()
 
 
 
-def add_segment_to_junction_file_SE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
+def add_segment_to_junction_file_SE(vSeg,jSeg,cSeg,out,fastaDict, idNameDict):
     """
     Parameters
     ----------
@@ -586,13 +584,13 @@ def add_segment_to_junction_file_SE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameD
     jcSeq = jSeq + cSeq
     lenSeg = min(len(vSeq),len(jcSeq))
     print("-------------", len(vSeq),len(jcSeq), "-----------")
-    if bases != -10:
-        if lenSeg < bases:
+    if args.bases != -10:
+        if lenSeg < args.bases:
             sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
                     'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
             sys.stdout.flush()
         else:
-            lenSeg = bases
+            lenSeg = args.bases
     jTrim = jcSeq[:lenSeg]
     vTrim = vSeq[-1*lenSeg:]
     junc = vTrim + jTrim
