@@ -73,7 +73,7 @@ def run_TCR_pipe():
         full_path = path + cell_folder + "/"
         if os.path.exists(full_path) and os.path.isdir(full_path):
             print(str(datetime.datetime.now()) + " Working on: " + cell_folder)
-            found, nbam, nunmapped, noutput = format_files(full_path, args.bam, args.unmapped, args.output)
+            found, bam, unmapped, output = format_files(full_path, args.bam, args.unmapped, args.output)
             if not found:
                 print(str(datetime.datetime.now()) +
                     " There is not a bam or unmapped file in\n"
@@ -92,11 +92,10 @@ def run_TCR_pipe():
                 aaF = curr_folder + "Data/{0}/{0}.TCR.conserved.AA.txt".format(args.genome)
                 ref_ind = curr_folder + "Data/{0}/index/{0}".format(args.genome)
 
-                run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, args.bases, args.strand, 
-                              reconstruction, aaF , args.iterations, args.score,
-                              args.overlap, args.rsem, args.bowtie2, args.lowQ, args.samtools, ref_ind, args.trim)
-                add_cell_to_TCR_sum(cell_folder, noutput, tcrFout)
-                final_stat_dict = add_to_stat_dict(noutput, cell_folder, final_stat_dict)
+                run_single_cell(fasta, bed, output, bam, unmapped, mapping, reconstruction, aaF, ref_ind)
+
+                add_cell_to_TCR_sum(cell_folder, output, tcrFout)
+                final_stat_dict = add_to_stat_dict(output, cell_folder, final_stat_dict)
 
     sumFout = open(args.sumF + ".summary.txt", "w")
     sumFout.write("sample\talpha\tbeta\n")
@@ -265,28 +264,30 @@ def format_files(full_path, bam, unmapped, output):
     """
     Parameters
     ----------
-    full_path :
-    bam : 
-    unmapped : 
-    output : 
+    full_path : str
+        Full path to the current cell folder.
+    bam : str
+        BAM file containing mapped reads.
+    unmapped : str
+        BAM file containing unapped reads.
+    output : str
 
     Returns
     -------
-    found : 
-    nbam : 
-    nunmapped : 
-    noutput :
+    found : boolean
+    nbam : str
+    nunmapped : str
+    noutput : str
 
     """
     found = True
-    nbam = format_path(full_path, bam)
-    nunmapped = format_path(full_path, unmapped)
-    if os.path.isfile(nunmapped) and os.path.isfile(nbam):
-        noutput = make_output_dir(output, full_path)
+    bam = format_path(full_path, bam)
+    unmapped = format_path(full_path, unmapped)
+    if os.path.isfile(unmapped) and os.path.isfile(bam):
+        output = make_output_dir(output, full_path)
     else:
-        noutput = output
         found = False
-    return found, nbam, nunmapped, noutput
+    return found, bam, unmapped, output
 
 
 def make_output_dir(output, full_path):
@@ -301,23 +302,22 @@ def make_output_dir(output, full_path):
     noutput : 
 
     """
-    noutput = format_path("", output)
+    output = format_path("", output)
     if output.endswith('/'):
-        noutput = output[:-1]
-    if output.find('/') != -1:
-        outArr = noutput.split('/')
-        currPath = full_path
-        for i in range(len(outArr)-1):
-            currPath = currPath + outArr[i] + '/'
-            if not os.path.exists(currPath):
-                os.makedirs(currPath)
-    noutput = full_path + noutput
-    return noutput
+        output = output[:-1]
+    # make all directories on path to output
+    if os.path.dirname(output) != "":
+        os.makedirs(os.path.dirname(output))
+    return full_path + output
 
+# run_single_cell(fasta, bed, output, bam, unmapped, mapping, args.bases, args.strand, 
+#                               reconstruction, aaF , args.iterations, args.score,
+#                               args.overlap, args.rsem, args.bowtie2, args.lowQ, args.samtools, ref_ind, args.trim)
+def run_single_cell(fasta, bed, output, bam, unmapped, mapping, reconstruction, aaF, ref_ind):
 
-def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, 
-                  reconstruction, aaF, num_iterations, threshold_score, 
-                  min_overlap, rsem, bowtie2, lowQ, samtools, ref_ind, trim):
+# def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, 
+#                   reconstruction, aaF, num_iterations, threshold_score, 
+#                   min_overlap, rsem, bowtie2, lowQ, samtools, ref_ind, trim):
     """
     Parameters
     ----------
@@ -330,7 +330,6 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     idNameDict = make_id_name_dict(mapping)
     fastaDict = make_fasta_dict(fasta)
     vdjDict = make_VDJ_bed_dict(bed, idNameDict)
-
     ave_length = get_ave_read_length(unmapped)
     paired_end = is_paired_end(bam)
     print("average length " + str(ave_length))
@@ -338,34 +337,35 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
     if paired_end:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-                                   bases, 'A', strand, lowQ)
+                                   args.bases, 'A', args.strand, args.lowQ)
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
         unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-                                  bases, 'B', strand, lowQ)
+                                  args.bases, 'B', args.strand, args.lowQ)
     else:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
-        analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
-                              strand, lowQ, bowtie2, ref_ind, trim)    
+        analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, args.bases, 
+                              args.strand, args.lowQ, args.bowtie2, ref_ind, args.trim)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = unDictAlpha
+    # import pdb; pdb.set_trace()
     
     print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
                      output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
-                     str(num_iterations), str(threshold_score), str(min_overlap)])
+                     str(args.iterations), str(args.score), str(args.overlap)])
     print(str(datetime.datetime.now()) + " Reconstructing beta chains")
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', 
                      output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', 
-                     str(num_iterations), str(threshold_score), str(min_overlap)])
+                     str(args.iterations), str(args.score), str(args.overlap)])
     
     print(str(datetime.datetime.now()) + " Creating full TCR sequencing")
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.alpha.fa'
-    create_TCR_full_output(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict)
+    create_TCR_full_output(fastaDict, tcrF, fullTcrFileAlpha, args.bases, idNameDict)
     fullTcrFileBeta = output + '.beta.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.beta.fa'
-    create_TCR_full_output(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
+    create_TCR_full_output(fastaDict, tcrF, fullTcrFileBeta , args.bases, idNameDict)
     
     print(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms")
     outDirInd = output.rfind('/')
@@ -373,7 +373,7 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand,
         outDir = output[:outDirInd+1]
     else:
         outDir = os.getcwd()
-    run_rsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+    run_rsem(outDir, args.rsem, args.bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, args.samtools)
     pick_final_isoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
