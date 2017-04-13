@@ -362,7 +362,7 @@ def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, out
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
 
-def writeReadsFileSE(mappedReadsDict, outReads, fastq):
+def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     if fastq.endswith('.gz'):
         subprocess.call(['gunzip', fastq])
         newFq = fastq.replace('.gz','')
@@ -374,8 +374,15 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq):
         if record.id in mappedReadsDict:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
-    out.close()
     fqF.close()
+    fqF2 = open(fastq2, 'rU')
+    for record in SeqIO.parse(fqF2, 'fastq'):
+        if record.id in mappedReadsDict and record.seq not in seen:
+            newRec = SeqRecord(record.seq, id = record.id, description = '')
+            SeqIO.write(newRec,out,'fasta')
+            # seen.append(record.seq)
+    fqF2.close()
+    out.close()
     if fastq.endswith('.gz'):
         subprocess.call(['gzip',newFq])
 
