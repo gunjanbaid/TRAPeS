@@ -302,48 +302,64 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
 def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, output, fastaDict, bases):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
-    lenArr = [999,50,25]
-    for currLen in lenArr:
-        if currLen == 999:
-            steps = ['none']
+    
+    fastq = unmapped + ".fq"
+    fastq2 = bam + ".fq"
+
+    sam = fastq + '.trimmed.sam'
+    temp1 = sam + '.temp1'
+    temp2 = sam + '.temp2'
+
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
         else:
-            steps = ['left','right']
-        for side in steps:
-            if side == 'left':
-                crop = 'CROP:' + str(currLen)
-            elif side == 'right':
-                crop = 'HEADCROP:' + str(currLen)
-            else:
-                crop = ''
-        # TODO: make sure we delete those files
-            trimFq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
-            # TODO: use bowtie trimmer instead
-            # TODO: make sure about minus strand alignment
-            if crop == '':
-                subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', 'MINLEN:20'])
-            else:
-                subprocess.call(['java','-jar', trimmomatic, 'SE','-phred33',fastq ,trimFq, 'LEADING:15','TRAILING:15', crop, 'MINLEN:20'])
-            samF = trimFq + '.sam'
-            if bowtie2 != '':
-                if bowtie2.endswith('/'):
-                    bowtieCall = bowtie2 + 'bowtie2'
-                else:
-                    bowtieCall = bowtie2 + '/bowtie2'
-            else:
-                bowtieCall = 'bowtie2'
-            subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x',transInd,'-U',trimFq,'-S',samF])
-            if os.path.isfile(samF):
-                mappedReadsDictAlpha = findReadsAndSegments(samF, mappedReadsDictAlpha, idNameDict,'A')
-                mappedReadsDictBeta = findReadsAndSegments(samF, mappedReadsDictBeta, idNameDict,'B')
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+
+    if not os.path.isfile(fastq):
+        fastq_file = open(fastq, "w+")
+        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+        fastq_file.close()
+    if not os.path.isfile(fastq2):
+        fastq2_file = open(fastq2, "w+")
+        subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
+        fastq2_file.close()
+
+    # need fastq format of unmapped.bam here
+    # change this to use trim length as a parameter too
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
+
+    sam_filtered = output + ".trimmed.filtered.sam"
+    samF = open(sam_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=samF)
+    samF.close()
+    subprocess.call(["rm", temp1, temp2])
+
+    print("DONE WITH BOWTIE!!!!")
+
+    if os.path.isfile(sam_filtered):
+        mappedReadsDictAlpha = findReadsAndSegments(sam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+        mappedReadsDictBeta = findReadsAndSegments(sam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+
+    # adding originally mapped reads to dictionaries
+    sam_mapped = output + ".sorted.sam"
+    subprocess.call(["samtools", "view", "-h", "-o", sam_mapped, bam])
+    if os.path.isfile(sam_mapped):
+        mappedReadsDictAlpha = findReadsAndSegments(sam_mapped, mappedReadsDictAlpha, idNameDict, 'A')
+        mappedReadsDictBeta = findReadsAndSegments(sam_mapped, mappedReadsDictBeta, idNameDict, 'B')
+
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
-    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq)
-    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq)
-    sys.exit(1)
+    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
+    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
 
 def writeReadsFileSE(mappedReadsDict, outReads, fastq):
