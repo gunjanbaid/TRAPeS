@@ -227,32 +227,48 @@ def makeOutputDir(output, fullPath):
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                   rsem, bowtie2, lowQ, samtools):
+
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-    sys.stdout.flush()
-    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
-    sys.stdout.flush()
-    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ)
-    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
-    sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
-    sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
-    sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
-        output + '.reconstructed.junctions.alpha.fa', str(numIterations), str(thresholdScore), str(minOverlap)])
-    sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
-    sys.stdout.flush()
+
+    ave_length = get_ave_read_length(unmapped)
+    paired_end = is_paired_end(bam)
+    print("average length " + str(ave_length))
+
+    if paired_end:
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                   bases, 'A', strand, lowQ)
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                  bases, 'B', strand, lowQ)
+    else:
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
+                              strand, lowQ, bowtie2, refInd, trim)    
+        unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
+        unDictBeta = unDictAlpha
+
+    print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
+    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
+                     output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
+                     str(numIterations), str(thresholdScore), str(minOverlap)])
+    print(str(datetime.datetime.now()) + " Reconstructing beta chains")
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', 
+                     output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', 
+                     str(numIterations), str(thresholdScore), str(minOverlap)])
+    
+    print(str(datetime.datetime.now()) + " Creating full TCR sequencing")
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.alpha.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict)
     fullTcrFileBeta = output + '.beta.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.beta.fa'
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta , bases, idNameDict)
-    sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
-    sys.stdout.flush()
+    
+    print(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms")
     outDirInd = output.rfind('/')
     if outDirInd != -1:
         outDir = output[:outDirInd+1]
@@ -262,23 +278,22 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
-    sys.stdout.write(str(datetime.datetime.now()) + " Finding productive CDR3\n")
-    sys.stdout.flush()
+    print(str(datetime.datetime.now()) + " Finding productive CDR3")
+
+    
     aaDict = makeAADict(aaF)
+    fDictAlpha, fDictBeta = {}, {}
     if os.path.isfile(bestAlpha):
-        fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict )
-    else:
-        fDictAlpha = dict()
+        fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict)
     if os.path.isfile(bestBeta):
-        fDictBeta = findCDR3(bestBeta, aaDict, fastaDict )
-    else:
-        fDictBeta = dict()
+        fDictBeta = findCDR3(bestBeta, aaDict, fastaDict)
+
     betaRsemOut = output + '.beta.rsem.out.genes.results'
     alphaRsemOut = output + '.alpha.rsem.out.genes.results'
     alphaBam = output + '.alpha.rsem.out.transcript.sorted.bam'
     betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
-    sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
-    sys.stdout.flush()
+    print(str(datetime.datetime.now()) + " Writing results to summary file")
+    
     makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
                              unDictAlpha, unDictBeta, idNameDict)
 
