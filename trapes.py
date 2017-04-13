@@ -60,6 +60,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     bed = currFolder + 'Data/hg38/hg38.TCR.bed'
                     mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
                     aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
+                    refInd = currFolder + 'Data/hg38/index/hg38'
                 if genome == 'mm10':
                     fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
                     bed = currFolder + 'Data/mm10/mm10.TCR.bed'
@@ -77,7 +78,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
 
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools)
+                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -226,15 +227,12 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools):
+                  rsem, bowtie2, lowQ, samtools, refInd):
 
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
-
-    ave_length = get_ave_read_length(unmapped)
     paired_end = is_paired_end(bam)
-    print("average length " + str(ave_length))
 
     if paired_end:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
@@ -274,7 +272,10 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         outDir = output[:outDirInd+1]
     else:
         outDir = os.getcwd()
-    runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+    if paired_end:
+        runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+    else:
+        runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
@@ -1151,6 +1152,70 @@ def runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, sa
                              '-q', fullTcrFileBeta, rsemIndDir + '/VDJ.beta.seq'])
             subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q', '--bowtie2',
                               '--bowtie2-mismatch-rate', '0.0', '--paired-end', output + '.beta.R1.fa', output + '.beta.R2.fa',
+                             rsemIndDir + '/VDJ.beta.seq', output + '.beta.rsem.out'])
+        unsortedBam = output + '.beta.rsem.out.transcript.bam'
+        if not os.path.exists(unsortedBam):
+            print "RSEM did not produce any transcript alignment files for beta chain, please check the -rsem parameter"
+        else:
+            sortedBam = output + '.beta.rsem.out.transcript.sorted.bam'
+            if not os.path.exists(sortedBam):
+                subprocess.call([samtools + 'samtools', 'sort','-o',sortedBam, unsortedBam])
+                subprocess.call([samtools + 'samtools', 'index', sortedBam])
+    else:
+        sys.stdout.write(str(datetime.datetime.now()) + " Did not reconstruct any beta chains, not running RSEM on beta\n")
+        sys.stdout.flush()
+
+
+def runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools):
+    if samtools != '':
+        if samtools[-1] != '/':
+            rsem += '/'
+    rsemIndDir = outDir + 'rsem_ind'
+    if os.path.exists(rsemIndDir) == False:
+        os.makedirs(rsemIndDir)
+    if rsem != '':
+        if rsem[-1] != '/':
+            rsem += '/'
+    if bowtie2 != '':
+        if bowtie2[-1] != '/':
+            bowtie2 += '/'
+    if os.path.exists(fullTcrFileAlpha):
+        if bowtie2 != '':
+            subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2', '--bowtie2-path', bowtie2 ,
+                             '-q', fullTcrFileAlpha, rsemIndDir + '/VDJ.alpha.seq'])
+            subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q',
+                             '--bowtie2', '--bowtie2-path',bowtie2, '--bowtie2-mismatch-rate', '0.0' , output + '.alpha.mapped.and.unmapped.fa',
+                             rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
+        else:
+            subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2',
+                             '-q', fullTcrFileAlpha, rsemIndDir + '/VDJ.alpha.seq'])
+            subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q',
+                             '--bowtie2', '--bowtie2-mismatch-rate', '0.0', output + '.alpha.mapped.and.unmapped.fa',
+                             rsemIndDir + '/VDJ.alpha.seq', output + '.alpha.rsem.out'])
+        unsortedBam = output + '.alpha.rsem.out.transcript.bam'
+        if not os.path.exists(unsortedBam):
+            print "RSEM did not produce any transcript alignment files for alpha chain, please check the -rsem parameter"
+        else:
+            sortedBam = output + '.alpha.rsem.out.transcript.sorted.bam'
+            if not os.path.exists(sortedBam):
+                subprocess.call([samtools + 'samtools', 'sort','-o',sortedBam, unsortedBam])
+                subprocess.call([samtools + 'samtools', 'index', sortedBam])
+
+    else:
+        sys.stdout.write(str(datetime.datetime.now()) + " Did not reconstruct any alpha chains, not running RSEM on alpha\n")
+        sys.stdout.flush()
+    if os.path.exists(fullTcrFileBeta):
+        if bowtie2 != '':
+            subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2', '--bowtie2-path', bowtie2 ,
+                             '-q', fullTcrFileBeta, rsemIndDir + '/VDJ.beta.seq'])
+            subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q', '--bowtie2', '--bowtie2-path',
+                             bowtie2, '--bowtie2-mismatch-rate', '0.0', output + '.beta.mapped.and.unmapped.fa',
+                             rsemIndDir + '/VDJ.beta.seq', output + '.beta.rsem.out'])
+        else:
+            subprocess.call([rsem + 'rsem-prepare-reference' , '--bowtie2',
+                             '-q', fullTcrFileBeta, rsemIndDir + '/VDJ.beta.seq'])
+            subprocess.call([rsem + 'rsem-calculate-expression', '--no-qualities', '-q', '--bowtie2',
+                              '--bowtie2-mismatch-rate', '0.0', output + '.beta.mapped.and.unmapped.fa',
                              rsemIndDir + '/VDJ.beta.seq', output + '.beta.rsem.out'])
         unsortedBam = output + '.beta.rsem.out.transcript.bam'
         if not os.path.exists(unsortedBam):
