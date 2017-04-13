@@ -10,6 +10,21 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
+def is_paired_end(filename):
+    """
+    Parameters
+    ----------
+    filename : str
+        Name of BAM/SAM file.
+
+    Returns
+    -------
+    boolean
+        True if reads are paired-end, False otherwise. 
+
+    """
+    return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
+
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
