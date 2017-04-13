@@ -29,7 +29,7 @@ def is_paired_end(filename):
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
 def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
-    checkParameters(genome, strand, singleCell, path, sumF)
+    checkParameters(genome, strand, singleCell, path, sumF, trim)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
         #runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
@@ -227,7 +227,7 @@ def makeOutputDir(output, fullPath):
 
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
-                  rsem, bowtie2, lowQ, samtools, refInd):
+                  rsem, bowtie2, lowQ, samtools, refInd, trim):
 
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
@@ -1813,8 +1813,9 @@ if __name__ == '__main__':
     parser.add_argument('-score','-sc','-SC', help='Alignment score threshold. Default is 15', type=int, default=15)
     parser.add_argument('-overlap','-ol','-OL', help='Number of minimum bases that overlaps V and J ends,'
                                                               'default is 10', type=int, default=10)
+    parser.add_argument('-trim', help='The number of bases to trim from each end of a sigle-end read.', type=int, default=25)
     args = parser.parse_args()
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
-                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools)
+                  args.singleCell, args.path, args.sumF, args.lowQ, args.samtools, args.trim)
 
