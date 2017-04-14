@@ -12,14 +12,6 @@ from Bio.Alphabet import IUPAC
 
 
 def write_unmapped_reads_to_dict_SE(unmapped):
-    """
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    """
     un_dict = {}
     f = pysam.AlignmentFile(unmapped,"rb")
     readsIter = f.fetch(until_eof = True)
