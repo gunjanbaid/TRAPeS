@@ -433,10 +433,6 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
     out.close()
 
 
-
-
-
-
 def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
     vSeq = fastaDict[vSeg]
     if jSeg != 'NA':
@@ -453,6 +449,7 @@ def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
         cSeq = ''
     jcSeq = jSeq + cSeq
     lenSeg = min(len(vSeq),len(jcSeq))
+
     if bases != -10:
         if lenSeg < bases:
             sys.stdout.write(str(datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, taking the length' \
@@ -483,7 +480,6 @@ def findReadsAndSegments(samF, mappedReadsDict, idNameDict,chain):
                         mappedReadsDict[readName].append(seg)
     samFile.close()
     return mappedReadsDict
-
 
 
 def makeSingleCellOutputFile(alphaDict, betaDict, output, betaRsem, alphaRsem, alphaBam, betaBam, fastaDict,
@@ -566,6 +562,7 @@ def writeChain(outF, chain,cdrDict,rsemF, bamF, fastaDict, unDict, output, idNam
         outF.write(str(fLine))
     writeFailedReconstructions(outF, chain, writtenArr, output, idNameDict, fastaDict )
 
+
 def writeFailedReconstructions(outF, chain, writtenArr, output, idNameDict, fastaDict):
     recF = output + '.reconstructed.junctions.' + chain + '.fa'
     if os.path.isfile(recF):
@@ -617,6 +614,7 @@ def findCurrRank(segDict, seg, currLen):
                 rank += 1
     return rank
 
+
 def addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaDict):
     head = tcrRecord.id
     headArr = head.split('.')
@@ -659,10 +657,6 @@ def addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaD
                 segDict[id]['name'] = idNameDict[id]
 
     return segDict
-
-
-
-
 
 
 def getRank(tcr, rsemDict, unRsemDict, isProd, noRsem):
@@ -715,6 +709,7 @@ def findCountsInRegion(bamF, start, end, tcr):
     counts = len(readsArr)
     return counts
 
+
 def makeRsemDict(rsemF, cdrDict):
     fDict = dict()
     unDict = dict()
@@ -731,7 +726,6 @@ def makeRsemDict(rsemF, cdrDict):
         l = f.readline()
     f.close()
     return (fDict,unDict)
-
 
 
 def findCDR3(fasta, aaDict, vdjFaDict):
@@ -764,7 +758,6 @@ def findCDR3(fasta, aaDict, vdjFaDict):
             fDict[record.id] = currDict
     f.close()
     return fDict
-
 
 
 def getBestJaa(currSeq):
@@ -823,6 +816,7 @@ def getBestVaa(currSeq):
     else:
         return firstSeq
 
+
 def isGoodRF(s):
     mInd = s.find('M')
     if mInd == -1:
@@ -840,7 +834,6 @@ def isGoodRF(s):
         return True
     else:
         return False
-
 
 
 def findVandJaaMap(vSeg,jSeg,fullSeq):
@@ -928,7 +921,6 @@ def findVandJaaMap(vSeg,jSeg,fullSeq):
     return fDict
 
 
-
 def getCDR3(aaSeq, vSeq, jSeq):
     minDist = 14
     pos = -1
@@ -978,8 +970,6 @@ def isLegal(subAA):
     return False
 
 
-
-
 def getNTseq(fullSeq):
     mod = len(fullSeq) % 3
     if mod != 0:
@@ -987,6 +977,7 @@ def getNTseq(fullSeq):
     else:
         fSeq = fullSeq.translate()
     return fSeq
+
 
 def findSeqAndLengthOfAA(aaSeq):
     fLen = 0
@@ -1038,12 +1029,9 @@ def makeAADict(aaF):
     return fDict
 
 
-
 def pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output):
     pickFinalIsoformChain(fullTcrFileAlpha, output + '.alpha.full.TCRs.bestIso.fa', output + '.alpha.rsem.out.genes.results')
     pickFinalIsoformChain(fullTcrFileBeta, output + '.beta.full.TCRs.bestIso.fa', output + '.beta.rsem.out.genes.results')
-
-
 
 
 def pickFinalIsoformChain(fullTCRfa, newFasta, rsemF):
@@ -1081,6 +1069,7 @@ def pickFinalIsoformChain(fullTCRfa, newFasta, rsemF):
                 SeqIO.write(newRec,outFa,'fasta')
         outFa.close()
         f.close()
+
 
 def findBestC(vjArr, rsemF):
     if (os.path.exists(rsemF)):
@@ -1303,7 +1292,6 @@ def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, c
     return unDict
 
 
-
 def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
     mappedFile = pysam.AlignmentFile(bam,"rb")
     if chain == 'A':
@@ -1333,6 +1321,7 @@ def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
         junctionSegs = writeJunctionsWithC(vjReads,outName, bases, fastaDict, idNameDict, cReads)
     mappedFile.close()
     return junctionSegs
+
 
 # Similar to "writeJunctionsWithC, only that instead of looking for V-J paired-reads, it looks for
 # V-C and J-C paired-reads
@@ -1457,6 +1446,7 @@ def writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, 
     out.close()
     return unDict
 
+
 def addMappedPairsToSeqDict(seqDict, bam, out, lowQ, alignedDict):
     firstDict = dict()
     secondDict = dict()
@@ -1532,6 +1522,7 @@ def writeSeqDict(seqDict, r1, r2):
     r1f.close()
     r2f.close()
 
+
 def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ):
     f = pysam.AlignmentFile(unmapped,"rb")
     readsIter = f.fetch(until_eof = True)
@@ -1579,6 +1570,7 @@ def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict
                     seqDict[cName][1] = qSeq
     f.close()
     return (seqDict, unDict)
+
 
 # Aligned dict - all the reads (with _1/_2) that were already written to the mapped.unmapped.fa file
 def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqDict, strand, segType, mappedPairsDict, lowQDict):
@@ -1708,9 +1700,6 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
     return fArr
 
 
-
-
-
 # Create a dict {'Alpha':{'C':[bed],'V':[bed],'J':[bed]}, 'Beta':{'C':[],'V':[],'J':[]}}
 def makeVDJBedDict(bed,idNameDict):
     fDict = {'Alpha':{'C':[],'V':[],'J':[]}, 'Beta':{'C':[],'V':[],'J':[]}}
@@ -1737,9 +1726,6 @@ def makeVDJBedDict(bed,idNameDict):
         l = f.readline()
     f.close()
     return fDict
-
-
-
 
 
 # Creates a dictionary of ENSEMBL ID -> fasta sequence
@@ -1786,10 +1772,6 @@ def checkParameters(genome, strand, singleCell, path, sumF):
             sys.exit("%s path does not exists. Please check your -path parameter and run again" % path)
 
 
-
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-genome','-g','-G', help='Alignment genome. Currently supported: mm10 and hg38', required=True)
@@ -1821,4 +1803,3 @@ if __name__ == '__main__':
     runTCRpipe(args.genome, args.output, args.bam, args.unmapped, args.bases, args.strand,
                 args.iterations,args.score, args.overlap, args.rsem, args.bowtie2,
                   args.singleCell, args.path, args.sumF, args.lowQ, args.samtools, args.trim)
-
