@@ -10,6 +10,24 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
+
+def write_unmapped_reads_to_dict_SE(unmapped):
+    """
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    un_dict = {}
+    f = pysam.AlignmentFile(unmapped,"rb")
+    readsIter = f.fetch(until_eof = True)
+    for read in readsIter:
+        name = read.query_name
+        un_dict[name] = '1'
+    return un_dict
+
 def is_paired_end(filename):
     """
     Parameters
@@ -28,8 +46,8 @@ def is_paired_end(filename):
 
 #def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                  #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
-def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools):
-    checkParameters(genome, strand, singleCell, path, sumF, trim)
+def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim):
+    checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
         # TODO: Fix this, won't work for SE
         #runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
@@ -78,7 +96,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
 
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd)
+                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
@@ -247,7 +265,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
                               strand, lowQ, bowtie2, refInd, trim)    
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
-        unDictBeta = unDictAlpha
+        unDictBeta = dict(unDictAlpha)
 
     print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
@@ -299,8 +317,8 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
                              unDictAlpha, unDictBeta, idNameDict)
 
 
-
-def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, output, fastaDict, bases):
+def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
+                          lowQ, bowtie2, refInd, trim):
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
     
@@ -473,13 +491,6 @@ def findReadsAndSegments(samF, mappedReadsDict, idNameDict,chain):
                         mappedReadsDict[readName].append(seg)
     samFile.close()
     return mappedReadsDict
-
-
-
-
-
-
-
 
 
 
@@ -1800,7 +1811,7 @@ if __name__ == '__main__':
     parser.add_argument('-bowtie2','-bw','-BW', help='Path to bowtie2. If not used assumes that bowtie2 is in the'
                                                  'default path', default = '')
     parser.add_argument('-rsem','-RSEM', help='Path to rsem. If not used assumes that rsem is in the'
-                                                'default path', default = '/data/yosef/users/safik/bin/rsem-1.2.21/')
+                                                'default path', default = '')
     parser.add_argument('-strand', help='Strand of the right most read in genomic coordinates. Options are: [minus, plus, '
                                         'none]. Defualt is minus', default = 'minus')
     parser.add_argument('-output','-out','-o','-O', help='output prefix, relative to /path/singleCellFolder', required=True)
