@@ -81,6 +81,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                     bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
                     mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
                     aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
+                    refInd = currFolder + 'Data/mm10_ncbi/index/mm10'
                 if genome == 'hg19':
                     fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
                     bed = currFolder + 'Data/hg19/hg19.TCR.bed'
@@ -259,6 +260,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = dict(unDictAlpha)
 
+    import pdb; pdb.set_trace()
     print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
                      output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
