@@ -20,6 +20,14 @@ def write_unmapped_reads_to_dict_SE(unmapped):
         un_dict[name] = '1'
     return un_dict
 
+# Takes in a BAM/SAM filename (str) and returns average read length (int) from stats
+def get_ave_read_length(filename):
+    p1 = subprocess.Popen(["samtools", "stats", filename], stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(["cut", "-f", "2-"], stdin=p1.stdout, stdout=subprocess.PIPE)
+    p3 = subprocess.Popen(["grep", "average length"], stdin=p2.stdout, stdout=subprocess.PIPE)
+    p4 = subprocess.Popen(["cut", "-f", "2-"], stdin=p3.stdout, stdout=subprocess.PIPE)
+    return int(p4.stdout.read().strip())
+
 def is_paired_end(filename):
     """
     Parameters
@@ -239,19 +247,26 @@ def makeOutputDir(output, fullPath):
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                   rsem, bowtie2, lowQ, samtools, refInd, trim):
-
+    # bam, unmapped = trim_unmapped_and_realign(unmapped, bowtie2, output, refInd, trim)
+    # print(get_ave_read_length(bam))
+    # print(get_ave_read_length(unmapped))
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
     paired_end = is_paired_end(bam)
 
+    # import pdb; pdb.set_trace()
     if paired_end:
-        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
-        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-                                   bases, 'A', strand, lowQ)
-        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
-        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-                                  bases, 'B', strand, lowQ)
+        # print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        # unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+        #                            bases, 'A', strand, lowQ, bowtie2, refInd, trim)
+        # print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        # unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+        #                           bases, 'B', strand, lowQ, bowtie2, refInd, trim)
+        analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
+                              strand, lowQ, bowtie2, refInd, trim)
+        unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
+        unDictBeta = dict(unDictAlpha)
     else:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
@@ -285,7 +300,8 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     else:
         outDir = os.getcwd()
     if paired_end:
-        runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+        # runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+        runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     else:
         runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
@@ -322,6 +338,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     sam = fastq + '.trimmed.sam'
     temp1 = sam + '.temp1'
     temp2 = sam + '.temp2'
+    import pdb; pdb.set_trace()
 
     if bowtie2 != '':
         if bowtie2.endswith('/'):
@@ -375,6 +392,57 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
 
+def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
+                          lowQ, bowtie2, refInd, trim):
+    mappedReadsDictAlpha = dict()
+    mappedReadsDictBeta = dict()
+
+    fastq = unmapped + ".fq"
+    sam = fastq + '.trimmed.sam'
+    temp1 = sam + '.temp1'
+    temp2 = sam + '.temp2'
+
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
+        else:
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+
+    if not os.path.isfile(fastq):
+        fastq_file = open(fastq, "w+")
+        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+        fastq_file.close()
+
+    # need fastq format of unmapped.bam here
+    # change this to use trim length as a parameter too
+    subprocess.call([bowtieCall ,'-q --phred33 --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', sam, "--trim3", str(trim)])
+    # subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
+    # subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
+    # subprocess.call(["rm", temp1, temp2])
+
+    bam_filtered = output + ".trimmed.filtered.bam"
+    bam_filtered_file = open(bam_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
+    bam_filtered_file.close()
+
+    print("DONE WITH BOWTIEdkfmjkdjf!!!!")
+
+    if os.path.isfile(bam_filtered):
+        mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+        mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+
+    alphaOut = output + '.alpha.junctions.txt'
+    alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
+    betaOutReads = output + '.beta.mapped.and.unmapped.fa'
+    betaOut = output + '.beta.junctions.txt'
+    writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
+    writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
+    writeReadsFileSEModified(mappedReadsDictAlpha, alphaOutReads, fastq)
+    writeReadsFileSEModified(mappedReadsDictBeta, betaOutReads, fastq)
+
+
 def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     if fastq.endswith('.gz'):
         subprocess.call(['gunzip', fastq])
@@ -395,6 +463,24 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
             SeqIO.write(newRec,out,'fasta')
             # seen.append(record.seq)
     fqF2.close()
+    out.close()
+    if fastq.endswith('.gz'):
+        subprocess.call(['gzip',newFq])
+
+
+def writeReadsFileSEModified(mappedReadsDict, outReads, fastq):
+    if fastq.endswith('.gz'):
+        subprocess.call(['gunzip', fastq])
+        newFq = fastq.replace('.gz','')
+    else:
+        newFq = fastq
+    out = open(outReads, 'w')
+    fqF = open(newFq, 'rU')
+    for record in SeqIO.parse(fqF, 'fastq'):
+        if record.id in mappedReadsDict:
+            newRec = SeqRecord(record.seq, id = record.id, description = '')
+            SeqIO.write(newRec,out,'fasta')
+    fqF.close()
     out.close()
     if fastq.endswith('.gz'):
         subprocess.call(['gzip',newFq])
@@ -1288,10 +1374,96 @@ def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict):
         outF.close()
 
 
-def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ):
+def analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, chain, strand, lowQ, bowtie2, refInd, trim):
     junctionSegs = makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict)
     unDict = writeReadsFile(bam, unmapped, junctionSegs, output, vdjDict, chain, strand, lowQ)
     return unDict
+
+
+def remove_file(*args):
+    for filename in args:
+        subprocess.call(["rm", filename])
+
+
+def trim_unmapped_and_realign(unmapped, bowtie2, output, refInd, trim):
+    fastq = unmapped + ".fq"
+    sam = fastq + '.trimmed.sam'
+    temp1 = sam + '.temp1'
+    temp2 = sam + '.temp2'
+
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
+        else:
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+
+    if not os.path.isfile(fastq):
+        fastq_file = open(fastq, "w+")
+        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+        fastq_file.close()
+    # import pdb; pdb.set_trace()
+    # print(output)    
+
+    # unmapped_1 = output + "_unmapped1.bam"
+    # unmapped_2 = output + "_unmapped2.bam"
+    # unmapped_1_file = open(unmapped_1, "w")
+    # unmapped_2_file = open(unmapped_2, "w")
+    # subprocess.call(["samtools", "view", "-f", "0x40", "unmapped.bam"], stdout=unmapped_1_file)
+    # subprocess.call(["samtools", "view", "-f", "0x80", "unmapped.bam"], stdout=unmapped_2_file)
+    # unmapped_1_file.close()
+    # unmapped_2_file.close()
+
+    # fastq_1 = output + "_unmapped1.fq"
+    # fastq_2 = output + "_unmapped2.fq"
+    # fastq_1_file = open(fastq_1, "w")
+    # fastq_2_file = open(fastq_2, "w")
+    # subprocess.call(["samtools", "bam2fq", unmapped_1], stdout=fastq_1_file)
+    # subprocess.call(["samtools", "bam2fq", unmapped_2], stdout=fastq_2_file)
+    # fastq_1_file.close()
+    # fastq_2_file.close()
+
+    # subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-1', fastq_1, '-2', fastq_2, '-S', sam, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
+
+    # filter mapped reads
+    mapped_filtered = output + ".trimmed.mapped.bam"
+    mapped_filtered_file = open(mapped_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=mapped_filtered_file)
+    mapped_filtered_file.close()
+
+    # filter unmapped reads
+    unmapped_filtered = output + ".trimmed.unmapped.bam"
+    unmapped_filtered_file = open(unmapped_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-f", "4", sam], stdout=unmapped_filtered_file)
+    unmapped_filtered_file.close()
+
+    # sort mapped BAM file
+    mapped_sorted = output + ".mapped.bam"
+    mapped_sorted_file = open(mapped_sorted, "w")
+    subprocess.call(["samtools", "sort", mapped_filtered], stdout=mapped_sorted_file)
+    mapped_sorted_file.close()
+
+    # create index for mapped BAM file
+    subprocess.call(["samtools", "index", mapped_sorted])
+
+    # sort unmapped BAM file
+    unmapped_sorted = output + ".unmapped.bam"
+    unmapped_sorted_file = open(unmapped_sorted, "w")
+    subprocess.call(["samtools", "sort", unmapped_filtered], stdout=unmapped_sorted_file)
+    unmapped_sorted_file.close()
+
+    # clean up files
+    remove_file(temp1, temp2)
+    remove_file(mapped_filtered, unmapped_filtered)
+
+    print("DONE WITH BOWTIE!!!!")
+    print(mapped_sorted, unmapped_sorted)
+    return mapped_sorted, unmapped_sorted
+
 
 
 def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
@@ -1307,6 +1479,7 @@ def makeJunctionFile(bam, chain, output, bases, vdjDict, fastaDict, idNameDict):
         sys.stderr.flush()
     jSegs = vdjChainDict['J']
     vSegs = vdjChainDict['V']
+    # import pdb; pdb.set_trace()
     vjSegs = []
     for x in jSegs:
         vjSegs.append(x)
@@ -1388,10 +1561,10 @@ def loadReadsToDict(segsDict, mappedFile, readDict):
         segName = lArr[3]
         readDict[segName] = {'first':[],'second':[]}
         lArr = seg.strip('\n').split('\t')
-        chr = lArr[0]
+        chr = lArr[3] # changed by Gunjan for mouse data
         start = int(lArr[1])
         end = int(lArr[2])
-        readsIter = mappedFile.fetch(chr, start-1, end+1)
+        readsIter = mappedFile.fetch(chr, start-1, end+1) 
         for read in readsIter:
             currName = read.query_name
             if read.is_read1:
@@ -1511,7 +1684,8 @@ def writeSeqDict(seqDict, r1, r2):
     r1f = open(r1,'w')
     r2f = open(r2,'w')
     for seq in seqDict:
-        if ((seqDict[seq][0] != '0') & (seqDict[seq][1]!= '1')):
+        print(seqDict[seq])
+        if ((seqDict[seq][0] != '0') and (seqDict[seq][1]!= '1')):
             seq1 = seq
             seq2 = seq
             rec1 = SeqRecord(seqDict[seq][0], id = seq1, description = '')
@@ -1528,6 +1702,7 @@ def writeSeqDict(seqDict, r1, r2):
 def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ):
     f = pysam.AlignmentFile(unmapped,"rb")
     readsIter = f.fetch(until_eof = True)
+    import pdb; pdb.set_trace()
     for read in readsIter:
         name = read.query_name
         if name in unmappedDict:
@@ -1577,7 +1752,7 @@ def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict
 # Aligned dict - all the reads (with _1/_2) that were already written to the mapped.unmapped.fa file
 def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqDict, strand, segType, mappedPairsDict, lowQDict):
     bedArr = segBed.strip('\n').split('\t')
-    chr = bedArr[0]
+    chr = bedArr[3] # changed by Gunjan for testing
     start = int(bedArr[1])
     end = int(bedArr[2])
     mappedFile = pysam.AlignmentFile(bam,"rb")
@@ -1639,11 +1814,11 @@ def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqD
 def toTakePair(segType, strand, readStrand):
     if strand == 'none':
         return True
-    if ((readStrand != 'minus') & (readStrand != 'plus')):
+    if ((readStrand != 'minus') and (readStrand != 'plus')):
         sys.stderr.write(str(datetime.datetime.now()) + ' Error! Read strand should be plus or minus only\n')
         sys.stderr.flush()
         return True
-    if ((segType == 'C') | (segType == 'J')):
+    if ((segType == 'C') or (segType == 'J')):
         if strand == 'minus':
             if readStrand == 'minus':
                 return True
@@ -1675,8 +1850,8 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict):
         if idNameDict[seg].find('J') != -1 :
             if len(vjReads[seg]) > 0 :
                 for sSeg in vjReads:
-                    if ((idNameDict[sSeg].find('V') != -1) & (len(vjReads[sSeg]) > 0)) :
-                        if (len([val for val in vjReads[seg]['first'] if val in vjReads[sSeg]['second']]) > 0) |\
+                    if ((idNameDict[sSeg].find('V') != -1) & (len(vjReads[sSeg]) > 0)):
+                        if (len([val for val in vjReads[seg]['first'] if val in vjReads[sSeg]['second']]) > 0) or\
                                 (len([val for val in vjReads[seg]['second'] if val in vjReads[sSeg]['first']]) > 0) :
                             if seg not in fArr:
                                 fArr.append(seg)
