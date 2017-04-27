@@ -275,7 +275,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
         unDictBeta = dict(unDictAlpha)
 
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
                      output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
@@ -410,10 +410,9 @@ def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idN
     else:
         bowtieCall = 'bowtie2'
 
-    if not os.path.isfile(fastq):
-        fastq_file = open(fastq, "w+")
-        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
-        fastq_file.close()
+    fastq_file = open(fastq, "w")
+    subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+    fastq_file.close()
 
     # need fastq format of unmapped.bam here
     # change this to use trim length as a parameter too
@@ -1726,7 +1725,7 @@ def writeSeqDict(seqDict, r1, r2):
 def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict, lowQDict, lowQ):
     f = pysam.AlignmentFile(unmapped,"rb")
     readsIter = f.fetch(until_eof = True)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     for read in readsIter:
         name = read.query_name
         if name in unmappedDict:
