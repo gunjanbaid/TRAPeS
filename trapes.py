@@ -427,11 +427,18 @@ def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idN
     subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
     bam_filtered_file.close()
 
+    # fastq = output + ".unmapped.fq"
+    # bam_filtered, unmapped_filtered = trim_and_realign(unmapped, bowtie2, output, refInd, trim, 4)
+
     print("DONE WITH BOWTIEdkfmjkdjf!!!!")
 
     if os.path.isfile(bam_filtered):
         mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
         mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+
+    # if os.path.isfile(unmapped_filtered):
+    #     mappedReadsDictAlpha = findReadsAndSegments(unmapped_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+    #     mappedReadsDictBeta = findReadsAndSegments(unmapped_filtered, mappedReadsDictBeta, idNameDict, 'B')
 
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
@@ -1385,6 +1392,43 @@ def remove_file(*args):
         subprocess.call(["rm", filename])
 
 
+def trim_and_realign(unmapped, bowtie2, output, refInd, trim, iterations=3):
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
+        else:
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+
+
+    for i in range(iterations):
+        fastq = output + ".unmapped.fq"
+        fastq_file = open(fastq, "w")
+        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+        fastq_file.close()
+
+        sam = output + ".unmapped.sam"
+        subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', sam, "--trim3", str(trim)])
+       
+        # filter mapped reads
+        mapped_filtered = output + ".mapped.bam"
+        mapped_filtered_file = open(mapped_filtered, "w")
+        subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=mapped_filtered_file)
+        mapped_filtered_file.close()
+
+        # filter unmapped reads
+        unmapped_filtered = output + ".unmapped.bam"
+        unmapped_filtered_file = open(unmapped_filtered, "w")
+        subprocess.call(["samtools", "view", "-b", "-f", "4", sam], stdout=unmapped_filtered_file)
+        unmapped_filtered_file.close()
+
+        # reset unmapped file
+        unmapped = unmapped_filtered
+
+    return mapped_filtered, unmapped_filtered 
+
+
 def trim_unmapped_and_realign(unmapped, bowtie2, output, refInd, trim):
     fastq = unmapped + ".fq"
     sam = fastq + '.trimmed.sam'
@@ -1403,26 +1447,6 @@ def trim_unmapped_and_realign(unmapped, bowtie2, output, refInd, trim):
         fastq_file = open(fastq, "w+")
         subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
         fastq_file.close()
-    # import pdb; pdb.set_trace()
-    # print(output)    
-
-    # unmapped_1 = output + "_unmapped1.bam"
-    # unmapped_2 = output + "_unmapped2.bam"
-    # unmapped_1_file = open(unmapped_1, "w")
-    # unmapped_2_file = open(unmapped_2, "w")
-    # subprocess.call(["samtools", "view", "-f", "0x40", "unmapped.bam"], stdout=unmapped_1_file)
-    # subprocess.call(["samtools", "view", "-f", "0x80", "unmapped.bam"], stdout=unmapped_2_file)
-    # unmapped_1_file.close()
-    # unmapped_2_file.close()
-
-    # fastq_1 = output + "_unmapped1.fq"
-    # fastq_2 = output + "_unmapped2.fq"
-    # fastq_1_file = open(fastq_1, "w")
-    # fastq_2_file = open(fastq_2, "w")
-    # subprocess.call(["samtools", "bam2fq", unmapped_1], stdout=fastq_1_file)
-    # subprocess.call(["samtools", "bam2fq", unmapped_2], stdout=fastq_2_file)
-    # fastq_1_file.close()
-    # fastq_2_file.close()
 
     # subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-1', fastq_1, '-2', fastq_2, '-S', sam, "--trim3", str(trim)])
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
@@ -1561,7 +1585,7 @@ def loadReadsToDict(segsDict, mappedFile, readDict):
         segName = lArr[3]
         readDict[segName] = {'first':[],'second':[]}
         lArr = seg.strip('\n').split('\t')
-        chr = lArr[3] # changed by Gunjan for mouse data
+        chr = lArr[0] # changed by Gunjan for mouse data
         start = int(lArr[1])
         end = int(lArr[2])
         readsIter = mappedFile.fetch(chr, start-1, end+1) 
@@ -1752,7 +1776,7 @@ def writeUnmappedReads(unmappedDict, out, unmapped, seqDict, unDict, alignedDict
 # Aligned dict - all the reads (with _1/_2) that were already written to the mapped.unmapped.fa file
 def addReadsToDict(unmappedDict, segBed, bam, out, mappedRead, alignedDict, seqDict, strand, segType, mappedPairsDict, lowQDict):
     bedArr = segBed.strip('\n').split('\t')
-    chr = bedArr[3] # changed by Gunjan for testing
+    chr = bedArr[0] # changed by Gunjan for testing
     start = int(bedArr[1])
     end = int(bedArr[2])
     mappedFile = pysam.AlignmentFile(bam,"rb")
