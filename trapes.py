@@ -253,6 +253,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
+    print(bam)
     paired_end = is_paired_end(bam)
 
     # import pdb; pdb.set_trace()
@@ -397,7 +398,7 @@ def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idN
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
 
-    fastq = unmapped + ".fq"
+    fastq = output + ".fq"
     sam = fastq + '.trimmed.sam'
     temp1 = sam + '.temp1'
     temp2 = sam + '.temp2'
