@@ -257,16 +257,16 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
 
     # import pdb; pdb.set_trace()
     if paired_end:
-        # print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
-        # unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-        #                            bases, 'A', strand, lowQ, bowtie2, refInd, trim)
-        # print(str(datetime.datetime.now()) + " Pre-processing beta chain")
-        # unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
-        #                           bases, 'B', strand, lowQ, bowtie2, refInd, trim)
-        analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
-                              strand, lowQ, bowtie2, refInd, trim)
-        unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
-        unDictBeta = dict(unDictAlpha)
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                   bases, 'A', strand, lowQ, bowtie2, refInd, trim)
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
+                                  bases, 'B', strand, lowQ, bowtie2, refInd, trim)
+        # analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
+        #                       strand, lowQ, bowtie2, refInd, trim)
+        # unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
+        # unDictBeta = dict(unDictAlpha)
     else:
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
@@ -300,8 +300,8 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     else:
         outDir = os.getcwd()
     if paired_end:
-        # runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
-        runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+        runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+        # runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     else:
         runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
@@ -363,24 +363,32 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
     subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
 
-    sam_filtered = output + ".trimmed.filtered.sam"
-    samF = open(sam_filtered, "w")
-    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=samF)
-    samF.close()
-    subprocess.call(["rm", temp1, temp2])
+    # bam_filtered = output + ".trimmed.filtered.bam"
+    # bam_filtered_file = open(bam_filtered, "w")
+    # subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
+    # bam_filtered_file.close()
+    # subprocess.call(["rm", temp1, temp2])
+
+    # # filter unmapped reads
+    # unmapped_filtered = output + ".unmapped.bam"
+    # unmapped_filtered_file = open(unmapped_filtered, "w")
+    # subprocess.call(["samtools", "view", "-b", "-f", "4", sam], stdout=unmapped_filtered_file)
+    # unmapped_filtered_file.close()
 
     print("DONE WITH BOWTIE!!!!")
 
-    if os.path.isfile(sam_filtered):
-        mappedReadsDictAlpha = findReadsAndSegments(sam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
-        mappedReadsDictBeta = findReadsAndSegments(sam_filtered, mappedReadsDictBeta, idNameDict, 'B')
-
-    # adding originally mapped reads to dictionaries
-    sam_mapped = output + ".sorted.sam"
-    subprocess.call(["samtools", "view", "-h", "-o", sam_mapped, bam])
-    if os.path.isfile(sam_mapped):
-        mappedReadsDictAlpha = findReadsAndSegments(sam_mapped, mappedReadsDictAlpha, idNameDict, 'A')
-        mappedReadsDictBeta = findReadsAndSegments(sam_mapped, mappedReadsDictBeta, idNameDict, 'B')
+    if os.path.isfile(bam_filtered):
+        mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+        mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+        # mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+        # mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+        
+    # # adding originally mapped reads to dictionaries
+    # sam_mapped = output + ".sorted.sam"
+    # subprocess.call(["samtools", "view", "-h", "-o", sam_mapped, bam])
+    # if os.path.isfile(sam_mapped):
+    #     mappedReadsDictAlpha = findReadsAndSegments(sam_mapped, mappedReadsDictAlpha, idNameDict, 'A')
+    #     mappedReadsDictBeta = findReadsAndSegments(sam_mapped, mappedReadsDictBeta, idNameDict, 'B')
 
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
@@ -388,8 +396,8 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     betaOut = output + '.beta.junctions.txt'
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
-    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
-    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
+    writeReadsFileSEModified(mappedReadsDictAlpha, alphaOutReads, fastq)
+    writeReadsFileSEModified(mappedReadsDictBeta, betaOutReads, fastq)
 
 
 def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
@@ -563,15 +571,15 @@ def findReadsAndSegments(samF, mappedReadsDict, idNameDict,chain):
     samFile = pysam.AlignmentFile(samF,'r')
     readsIter = samFile.fetch(until_eof = True)
     for read in readsIter:
-        if read.is_unmapped == False:
-            seg = samFile.getrname(read.reference_id)
-            if seg in idNameDict:
-                if idNameDict[seg].find(chain) != -1:
-                    readName = read.query_name
-                    if readName not in mappedReadsDict:
-                        mappedReadsDict[readName] = []
-                    if seg not in mappedReadsDict[readName]:
-                        mappedReadsDict[readName].append(seg)
+        # if read.is_unmapped == False:
+        seg = samFile.getrname(read.reference_id)
+        if seg in idNameDict:
+            if idNameDict[seg].find(chain) != -1:
+                readName = read.query_name
+                if readName not in mappedReadsDict:
+                    mappedReadsDict[readName] = []
+                if seg not in mappedReadsDict[readName]:
+                    mappedReadsDict[readName].append(seg)
     samFile.close()
     return mappedReadsDict
 
