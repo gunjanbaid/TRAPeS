@@ -348,14 +348,13 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     else:
         bowtieCall = 'bowtie2'
 
-    if not os.path.isfile(fastq):
-        fastq_file = open(fastq, "w+")
-        subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
-        fastq_file.close()
-    if not os.path.isfile(fastq2):
-        fastq2_file = open(fastq2, "w+")
-        subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
-        fastq2_file.close()
+    fastq_file = open(fastq, "w")
+    subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
+    fastq_file.close()
+
+    fastq2_file = open(fastq2, "w+")
+    subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
+    fastq2_file.close()
 
     # need fastq format of unmapped.bam here
     # change this to use trim length as a parameter too
@@ -363,10 +362,10 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
     subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
 
-    # bam_filtered = output + ".trimmed.filtered.bam"
-    # bam_filtered_file = open(bam_filtered, "w")
-    # subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
-    # bam_filtered_file.close()
+    bam_filtered = output + ".trimmed.filtered.bam"
+    bam_filtered_file = open(bam_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
+    bam_filtered_file.close()
     # subprocess.call(["rm", temp1, temp2])
 
     # # filter unmapped reads
@@ -568,7 +567,7 @@ def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
 
 
 def findReadsAndSegments(samF, mappedReadsDict, idNameDict,chain):
-    samFile = pysam.AlignmentFile(samF,'r')
+    samFile = pysam.AlignmentFile(samF,'rb')
     readsIter = samFile.fetch(until_eof = True)
     for read in readsIter:
         # if read.is_unmapped == False:
@@ -1492,7 +1491,6 @@ def trim_unmapped_and_realign(unmapped, bowtie2, output, refInd, trim):
     remove_file(mapped_filtered, unmapped_filtered)
 
     print("DONE WITH BOWTIE!!!!")
-    print(mapped_sorted, unmapped_sorted)
     return mapped_sorted, unmapped_sorted
 
 
@@ -1665,7 +1663,7 @@ def addMappedPairsToSeqDict(seqDict, bam, out, lowQ, alignedDict):
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! empty record insdie seqDict\n')
             sys.stderr.flush()
     f = pysam.AlignmentFile(bam,"rb")
-    readsIter = f.fetch()
+    readsIter = f.fetch(until_eof=True)
     for read in readsIter:
         name = read.query_name
         pos = -1
@@ -1715,7 +1713,6 @@ def writeSeqDict(seqDict, r1, r2):
     r1f = open(r1,'w')
     r2f = open(r2,'w')
     for seq in seqDict:
-        print(seqDict[seq])
         if ((seqDict[seq][0] != '0') and (seqDict[seq][1]!= '1')):
             seq1 = seq
             seq2 = seq
