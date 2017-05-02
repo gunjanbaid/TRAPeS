@@ -357,8 +357,6 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
     fastq2_file.close()
 
-    # need fastq format of unmapped.bam here
-    # change this to use trim length as a parameter too
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
     subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
@@ -367,7 +365,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     bam_filtered_file = open(bam_filtered, "w")
     subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
     bam_filtered_file.close()
-    # subprocess.call(["rm", temp1, temp2])
+    subprocess.call(["rm", temp1, temp2])
 
     # # filter unmapped reads
     # unmapped_filtered = output + ".unmapped.bam"
@@ -384,7 +382,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
-    
+
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
 
@@ -392,8 +390,8 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
         mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
         mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
         
-    writeReadsFileSEModified(mappedReadsDictAlpha, alphaOutReads, fastq)
-    writeReadsFileSEModified(mappedReadsDictBeta, betaOutReads, fastq)
+    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
+    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
 
 def analyzeChainSingleEndModified(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand, 
