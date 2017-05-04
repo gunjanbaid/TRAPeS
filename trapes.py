@@ -375,21 +375,20 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
 
     print("DONE WITH BOWTIE!!!!")
 
-    mappedReadsDictAlpha = findReadsAndSegments(bam, mappedReadsDictAlpha, idNameDict, 'A')
-    mappedReadsDictBeta = findReadsAndSegments(bam, mappedReadsDictBeta, idNameDict, 'B')
-    
     alphaOut = output + '.alpha.junctions.txt'
     alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
 
-    writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
-    writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
+    mappedReadsDictAlpha = findReadsAndSegments(bam, mappedReadsDictAlpha, idNameDict, 'A')
+    mappedReadsDictBeta = findReadsAndSegments(bam, mappedReadsDictBeta, idNameDict, 'B')
 
     if os.path.isfile(bam_filtered):
         mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
         mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
-        
+
+    writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
+    writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
@@ -466,10 +465,9 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     fqF.close()
     fqF2 = open(fastq2, 'rU')
     for record in SeqIO.parse(fqF2, 'fastq'):
-        if record.id in mappedReadsDict and record.seq not in seen:
+        if record.id in mappedReadsDict:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
-            # seen.append(record.seq)
     fqF2.close()
     out.close()
     if fastq.endswith('.gz'):
@@ -495,24 +493,38 @@ def writeReadsFileSEModified(mappedReadsDict, outReads, fastq):
 
 
 
-def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, chain):
+def witeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, chain):
     out = open(output, 'w')
-    vSegs = []
-    jSegs = []
-    cSegs = []
+    vSegs = {}
+    jSegs = {}
+    cSegs = {}
     for read in mappedReadsDict:
         for seg in mappedReadsDict[read]:
             if idNameDict[seg].find('V') != -1:
                 if seg not in vSegs:
-                    vSegs.append(seg)
+                    vSegs[seg] = 1
+		else:
+		    vSegs[seg] = vSegs[seg] + 1
             elif idNameDict[seg].find('J') != -1:
                 if seg not in jSegs:
-                    jSegs.append(seg)
+                    jSegs[seg] = 1
+		else:
+	     	    jSegs[seg] = jSegs[seg] + 1
             elif idNameDict[seg].find('C') != -1:
                 if seg not in cSegs:
-                    cSegs.append(seg)
+                    cSegs[seg] = 1
+		else:
+		    cSegs[seg] = cSegs[seg] + 1
             else:
                 print "Error! not V/J/C in fasta dict"
+    import pdb; pdb.set_trace()
+    vSegs = sorted(vSegs.items(), key=lambda x: x[1])[:5]
+    vSegs = [key for key,val in vSegs]
+    jSegs = sorted(jSegs.items(), key=lambda x: x[1])[:5]
+    jSegs = [key for key,val in jSegs]
+    cSegs = sorted(cSegs.items(), key=lambda x: x[1])[:5]
+    cSegs = [key for key,val in cSegs]
+
     if len(vSegs) == 0:
         print "Did not find any V segments for " + chain + " chain"
     else:
@@ -565,15 +577,15 @@ def findReadsAndSegments(samF, mappedReadsDict, idNameDict,chain):
     samFile = pysam.AlignmentFile(samF,'rb')
     readsIter = samFile.fetch(until_eof = True)
     for read in readsIter:
-        # if read.is_unmapped == False:
-        seg = samFile.getrname(read.reference_id)
-        if seg in idNameDict:
-            if idNameDict[seg].find(chain) != -1:
-                readName = read.query_name
-                if readName not in mappedReadsDict:
-                    mappedReadsDict[readName] = []
-                if seg not in mappedReadsDict[readName]:
-                    mappedReadsDict[readName].append(seg)
+        if read.is_unmapped == False:
+            seg = samFile.getrname(read.reference_id)
+            if seg in idNameDict:
+                if idNameDict[seg].find(chain) != -1:
+                    readName = read.query_name
+                    if readName not in mappedReadsDict:
+                        mappedReadsDict[readName] = []
+                    if seg not in mappedReadsDict[readName]:
+                        mappedReadsDict[readName].append(seg)
     samFile.close()
     return mappedReadsDict
 
