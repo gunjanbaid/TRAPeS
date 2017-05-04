@@ -333,12 +333,13 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     mappedReadsDictAlpha = dict()
     mappedReadsDictBeta = dict()
     
-    fastq = unmapped + ".fq"
-    fastq2 = bam + ".fq"
+    fastq1 = output + ".unmapped.fq"
+    fastq2 = output + "sorted.fq"
 
-    sam = fastq + '.trimmed.sam'
-    temp1 = sam + '.temp1'
-    temp2 = sam + '.temp2'
+    sam1 = output + '.unmapped.sam'
+    sam2 = output + '.sorted.sam'
+    temp1 = output + '.temp1.sam'
+    temp2 = output + '.temp2.sam'
     # import pdb; pdb.set_trace()
 
     if bowtie2 != '':
@@ -349,29 +350,37 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     else:
         bowtieCall = 'bowtie2'
 
-    fastq_file = open(fastq, "w")
-    subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq_file)
-    fastq_file.close()
+    fastq1_file = open(fastq1, "w")
+    subprocess.call(["samtools", "bam2fq", unmapped], stdout=fastq1_file)
+    fastq1_file.close()
 
     fastq2_file = open(fastq2, "w+")
     subprocess.call(["samtools", "fastq", bam], stdout=fastq2_file)
     fastq2_file.close()
 
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp1, "--trim3", str(trim)])
-    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq, '-S', temp2, "--trim5", str(trim)])
-    subprocess.call(["samtools", "merge", "-f", sam, temp1, temp2])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call(["samtools", "merge", "-f", sam1, temp1, temp2])
+    remove_file(temp1, temp2)
+
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq2, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq2, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call(["samtools", "merge", "-f", sam2, temp1, temp2])
+    remove_file(temp1, temp2)
+
+    bam_merged = output + ".merged.bam"
+    subprocess.call(["samtools", "merge", "-f", "-b" , bam_merged, sam1, sam2])
 
     bam_filtered = output + ".trimmed.filtered.bam"
     bam_filtered_file = open(bam_filtered, "w")
-    subprocess.call(["samtools", "view", "-b", "-F", "4", sam], stdout=bam_filtered_file)
+    subprocess.call(["samtools", "view", "-b", "-F", "4", bam_merged], stdout=bam_filtered_file)
     bam_filtered_file.close()
-    subprocess.call(["rm", temp1, temp2])
 
-    # # filter unmapped reads
-    # unmapped_filtered = output + ".unmapped.bam"
-    # unmapped_filtered_file = open(unmapped_filtered, "w")
-    # subprocess.call(["samtools", "view", "-b", "-f", "4", sam], stdout=unmapped_filtered_file)
-    # unmapped_filtered_file.close()
+    # filter unmapped reads
+    unmapped_filtered = output + ".unmapped.bam"
+    unmapped_filtered_file = open(unmapped_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-f", "4", sam], stdout=unmapped_filtered_file)
+    unmapped_filtered_file.close()
 
     print("DONE WITH BOWTIE!!!!")
 
@@ -380,15 +389,19 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
 
-    mappedReadsDictAlpha = findReadsAndSegments(bam, mappedReadsDictAlpha, idNameDict, 'A')
-    mappedReadsDictBeta = findReadsAndSegments(bam, mappedReadsDictBeta, idNameDict, 'B')
+    mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+    mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
 
-    if os.path.isfile(bam_filtered):
-        mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
-        mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+    # if os.path.isfile(bam_filtered):
+    #     mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+    #     mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
 
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
+
+    # mappedReadsDictAlpha = findReadsAndSegments(bam_filtered, mappedReadsDictAlpha, idNameDict, 'A')
+    # mappedReadsDictBeta = findReadsAndSegments(bam_filtered, mappedReadsDictBeta, idNameDict, 'B')
+   
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq, fastq2)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq, fastq2)
 
@@ -493,7 +506,7 @@ def writeReadsFileSEModified(mappedReadsDict, outReads, fastq):
 
 
 
-def witeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, chain):
+def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, chain):
     out = open(output, 'w')
     vSegs = {}
     jSegs = {}
