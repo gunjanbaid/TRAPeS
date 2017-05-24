@@ -534,7 +534,7 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
 		    cSegs[seg] = cSegs[seg] + 1
             else:
                 print "Error! not V/J/C in fasta dict"
-    vSegs = sorted(vSegs.items(), key=lambda x: -x[1])[:1]
+    vSegs = sorted(vSegs.items(), key=lambda x: -x[1])[:2]
     vSegs = [key for key,val in vSegs]
     jSegs = sorted(jSegs.items(), key=lambda x: -x[1])[:5]
     jSegs = [key for key,val in jSegs]

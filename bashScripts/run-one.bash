@@ -15,8 +15,8 @@ mkdir ${OUT_DIR}/${CELL_DIR}
 old_path="/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day0/${CELL_DIR}"
 new_path="/home/eecs/gunjan_baid/trapes/${OUT_DIR}/${CELL_DIR}"
 # add regions for the chromosomes
-samtools view -h -s 0.8 ${old_path}/tophat_output/picard_output/sorted.bam NC_000080.6 NC_000072.6 > ${new_path}/sorted.bam
-samtools view -h -s 0.8 ${old_path}/tophat_output/unmapped.bam > ${new_path}/unmapped.bam
+samtools view -h ${old_path}/tophat_output/picard_output/sorted.bam NC_000080.6 NC_000072.6 > ${new_path}/sorted.bam
+samtools view -h ${old_path}/tophat_output/unmapped.bam > ${new_path}/unmapped.bam
 samtools bam2fq ${new_path}/sorted.bam > ${new_path}/output.sorted.fq
 samtools bam2fq ${new_path}/unmapped.bam > ${new_path}/output.unmapped.fq
 python pythonScripts/helper.py ${new_path}/sorted.bam ${new_path}/sortedTEMP.bam
@@ -38,4 +38,4 @@ samtools index ${new_path}/sorted.bam
 #	break	
 #fi
 
-python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 50 -lowQ
+python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 70 -lowQ
