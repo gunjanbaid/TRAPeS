@@ -538,7 +538,7 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
     vSegs = [key for key,val in vSegs]
     jSegs = sorted(jSegs.items(), key=lambda x: -x[1])[:5]
     jSegs = [key for key,val in jSegs]
-    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:2]
+    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:1]
     cSegs = [key for key,val in cSegs]
 
     print([idNameDict[val] for val in vSegs])
