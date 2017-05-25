@@ -65,13 +65,16 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     opened = False
     
     # parallel processing of each cell
-    num_cores = multiprocessing.cpu_count()
+    num_cores = multiprocessing.cpu_count()//2
     Parallel(n_jobs=num_cores)(delayed(processCell)(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2,\
                     singleCell, path, sumF, lowQ, samtools, trim, cellFolder) for cellFolder in os.listdir(path))
 
     for cellFolder in os.listdir(path):
-    	opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
-    	finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
+        fullPath = path + cellFolder + '/'
+	(found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
+        opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
+        finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
+
     sumFout = open(sumF + '.summary.txt','w')
     sumFout.write('sample\talpha\tbeta\n')
     for cell in sorted(finalStatDict):
@@ -549,7 +552,7 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
     vSegs = [key for key,val in vSegs]
     jSegs = sorted(jSegs.items(), key=lambda x: -x[1])[:5]
     jSegs = [key for key,val in jSegs]
-    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:2]
+    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:1]
     cSegs = [key for key,val in cSegs]
 
     print([idNameDict[val] for val in vSegs])

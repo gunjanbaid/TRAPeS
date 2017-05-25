@@ -2,8 +2,8 @@
 
 source /home/eecs/gunjan_baid/.conda/envs/my_root/bin/activate my_root
 
-#data_loc=/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day0
-data_loc=/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day49
+data_loc=/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day0
+#data_loc=/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day49
 DIRS=`ls -l $data_loc | egrep '^d' | awk '{print $9}'`
 OUT_DIR=$1
 
