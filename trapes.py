@@ -66,7 +66,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
             sys.stdout.write(str(datetime.datetime.now()) + " Working on: " + cellFolder + '\n')
             sys.stdout.flush()
             (found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
-            if not found:
+	    if not found:
                 sys.stderr.write(str(datetime.datetime.now()) + " There is not a bam or unmapped file in "
                                                                 "this folder, moving to the next folder\n")
                 sys.stderr.flush()
@@ -100,6 +100,10 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
                             minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
+#    for cell in os.listdir(path):
+ #       fullPath = path + cellFolder + '/'
+#	(found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
+ #       print(fullPath,noutput)
     sumFout = open(sumF + '.summary.txt','w')
     sumFout.write('sample\talpha\tbeta\n')
     for cell in sorted(finalStatDict):
