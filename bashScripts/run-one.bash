@@ -38,4 +38,4 @@ samtools index ${new_path}/sorted.bam
 #	break	
 #fi
 
-python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 70 -lowQ
+python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 30 -lowQ
