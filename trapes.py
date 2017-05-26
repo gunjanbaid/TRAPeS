@@ -65,7 +65,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     opened = False
     
     # parallel processing of each cell
-    num_cores = multiprocessing.cpu_count()//2
+    num_cores = multiprocessing.cpu_count()
     Parallel(n_jobs=num_cores)(delayed(processCell)(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2,\
                     singleCell, path, sumF, lowQ, samtools, trim, cellFolder) for cellFolder in os.listdir(path))
 
