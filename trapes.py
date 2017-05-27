@@ -10,9 +10,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 # for parallelized for loop
-from joblib import Parallel, delayed
-import multiprocessing
-    
+import concurrent.futures    
+from multiprocessing.pool import ThreadPool
 
 def write_unmapped_reads_to_dict_SE(unmapped):
     un_dict = {}
@@ -63,11 +62,19 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     finalStatDict = dict()
     tcrFout = open(sumF + '.TCRs.txt','w')
     opened = False
-    
-    # parallel processing of each cell
-    num_cores = multiprocessing.cpu_count()
-    Parallel(n_jobs=num_cores)(delayed(processCell)(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2,\
-                    singleCell, path, sumF, lowQ, samtools, trim, cellFolder) for cellFolder in os.listdir(path))
+   
+    def processCellWrapper(cellFolder):
+        return processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder)
+ 
+    # parallel processing of each cell 
+    pool = ThreadPool(processes=20)
+    pool.map(processCellWrapper, (cellFolder for cellFolder in os.listdir(path)))
+    pool.close()
+
+    # this code didn't work...
+    #executor = concurrent.futures.ThreadPoolExecutor(10)
+    #futures = [executor.submit(processCell, cellFolder) for cellFolder in os.listdir(path)]
+    #concurrent.futures.wait(futures)
 
     for cellFolder in os.listdir(path):
         fullPath = path + cellFolder + '/'
@@ -81,6 +88,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
         fout = cell + '\t' + finalStatDict[cell]['alpha'] + '\t' + finalStatDict[cell]['beta'] + '\n'
         sumFout.write(fout)
     sumFout.close()
+    
 
 def processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder):
         
