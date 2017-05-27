@@ -9,6 +9,10 @@ OUT_DIR=$1
 
 rm -r -f /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 mkdir /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
+cp /home/eecs/gunjan_baid/trapes/bashScripts/run-all.bash /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
+cp /home/eecs/gunjan_baid/trapes/trapes.py /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
+cp /home/eecs/gunjan_baid/trapes/vdj.alignment /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
+cp /home/eecs/gunjan_baid/trapes/Data /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 
 for CELL_DIR in $DIRS
 do
@@ -43,4 +47,4 @@ do
         #fi
 done
 
-python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 25 -lowQ
+python /home/eecs/gunjan_baid/trapes/${OUT_DIR}/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 25 -lowQ
