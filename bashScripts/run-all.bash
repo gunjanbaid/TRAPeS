@@ -10,8 +10,7 @@ OUT_DIR=$1
 rm -r -f /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 mkdir /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 
-for CELL_DIR in $DIRS
-do
+prepare () {
 	echo ${CELL_DIR}
 	mkdir ${OUT_DIR}/${CELL_DIR}
 	old_path="/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day0/${CELL_DIR}"
@@ -38,9 +37,11 @@ do
 	rm ${new_path}/output.sorted.fq
 	samtools bam2fq ${new_path}/sorted.bam > ${new_path}/output.sorted.fq
 	samtools bam2fq ${new_path}/unmapped.bam > ${new_path}/output.unmapped.fq
-	#if [ ${CELL_DIR} == "ERR1146638" ]; then
-	#	break	
-	#fi
-done
+	if [ ${CELL_DIR} == "ERR1146641" ]; then
+		break	
+	fi
+}
+
+for CELL_DIR in $DIRS; do prepare "$CELL_DIR" & done
 
 python /home/eecs/gunjan_baid/trapes/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 25 -lowQ
