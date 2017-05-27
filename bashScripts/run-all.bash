@@ -12,7 +12,7 @@ mkdir /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 cp /home/eecs/gunjan_baid/trapes/bashScripts/run-all.bash /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 cp /home/eecs/gunjan_baid/trapes/trapes.py /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 cp /home/eecs/gunjan_baid/trapes/vdj.alignment /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
-cp /home/eecs/gunjan_baid/trapes/Data /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
+cp -r /home/eecs/gunjan_baid/trapes/Data /home/eecs/gunjan_baid/trapes/${OUT_DIR}/Data
 
 for CELL_DIR in $DIRS
 do
