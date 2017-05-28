@@ -13,6 +13,6 @@ cp -r cleanProcessedData/* /home/eecs/gunjan_baid/trapes/${OUT_DIR}/cells
 cp /home/eecs/gunjan_baid/trapes/bashScripts/run-clean-data.bash /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 cp /home/eecs/gunjan_baid/trapes/trapes.py /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 cp /home/eecs/gunjan_baid/trapes/vdj.alignment /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
-cp -r /home/eecs/gunjan_baid/trapes/Data/* /home/eecs/gunjan_baid/trapes/${OUT_DIR}/Data
+cp -r /home/eecs/gunjan_baid/trapes/Data /home/eecs/gunjan_baid/trapes/${OUT_DIR}
 
 python /home/eecs/gunjan_baid/trapes/${OUT_DIR}/trapes.py -path /home/eecs/gunjan_baid/trapes/${OUT_DIR}/cells/ -bam sorted.bam -unmapped unmapped.bam -output output -sumF /home/eecs/gunjan_baid/trapes/${OUT_DIR}/summary -genome mm10_ncbi -trim 30 -score 35 -lowQ
