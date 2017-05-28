@@ -4,8 +4,7 @@ source /home/eecs/gunjan_baid/.conda/envs/my_root/bin/activate my_root
 
 data_loc=/data/yosef2/Published_Data/TraCeR/proc_data_100bp/day0
 DIRS=`ls -l $data_loc | egrep '^d' | awk '{print $9}'`
-CELL_DIR=$1
-OUT_DIR=$2
+OUT_DIR=$1
 
 rm -r -f /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
 mkdir /home/eecs/gunjan_baid/trapes/${OUT_DIR}/
