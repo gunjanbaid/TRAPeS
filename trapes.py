@@ -10,9 +10,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 # for parallelized for loop
-from joblib import Parallel, delayed
-import multiprocessing
-    
+import concurrent.futures    
+from multiprocessing.pool import ThreadPool
 
 def write_unmapped_reads_to_dict_SE(unmapped):
     un_dict = {}
@@ -47,6 +46,8 @@ def is_paired_end(filename):
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
 
 
+#def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
+                 #rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
 def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim):
     checkParameters(genome, strand, singleCell, path, sumF)
     if singleCell == True:
@@ -61,53 +62,73 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
     finalStatDict = dict()
     tcrFout = open(sumF + '.TCRs.txt','w')
     opened = False
+   
+    def processCellWrapper(cellFolder):
+        return processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder)
+ 
+    # parallel processing of each cell 
+    pool = ThreadPool(processes=20)
+    pool.map(processCellWrapper, (cellFolder for cellFolder in os.listdir(path)))
+    pool.close()
+
+    # this code didn't work...
+    #executor = concurrent.futures.ThreadPoolExecutor(10)
+    #futures = [executor.submit(processCell, cellFolder) for cellFolder in os.listdir(path)]
+    #concurrent.futures.wait(futures)
+
     for cellFolder in os.listdir(path):
         fullPath = path + cellFolder + '/'
-        if((os.path.exists(fullPath)) & (os.path.isdir(fullPath))):
-            sys.stdout.write(str(datetime.datetime.now()) + " Working on: " + cellFolder + '\n')
-            sys.stdout.flush()
-            (found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
-            if not found:
-                sys.stderr.write(str(datetime.datetime.now()) + " There is not a bam or unmapped file in "
-                                                                "this folder, moving to the next folder\n")
-                sys.stderr.flush()
-            else:
-                currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-                reconstruction = currFolder + '/vdj.alignment'
-                if genome == 'hg38':
-                    fasta = currFolder + 'Data/hg38/hg38.TCR.fa'
-                    bed = currFolder + 'Data/hg38/hg38.TCR.bed'
-                    mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
-                    refInd = currFolder + 'Data/hg38/index/hg38'
-                if genome == 'mm10':
-                    fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
-                if genome == 'mm10_ncbi':
-                    fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
-                    refInd = currFolder + 'Data/mm10_ncbi/index/mm10'
-                if genome == 'hg19':
-                    fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
-                    bed = currFolder + 'Data/hg19/hg19.TCR.bed'
-                    mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
+	(found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
+        opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
+        finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
 
-                runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
-                            minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim)
-                opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
-                finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt','w')
     sumFout.write('sample\talpha\tbeta\n')
     for cell in sorted(finalStatDict):
         fout = cell + '\t' + finalStatDict[cell]['alpha'] + '\t' + finalStatDict[cell]['beta'] + '\n'
         sumFout.write(fout)
     sumFout.close()
+    
 
+def processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder):
+        
+    fullPath = path + cellFolder + '/'
+    if((os.path.exists(fullPath)) & (os.path.isdir(fullPath))):
+        sys.stdout.write(str(datetime.datetime.now()) + " Working on: " + cellFolder + '\n')
+        sys.stdout.flush()
+        (found, nbam, nunmapped, noutput) = formatFiles(fullPath, bam, unmapped, output)
+        if not found:
+            sys.stderr.write(str(datetime.datetime.now()) + " There is not a bam or unmapped file in "
+                                                            "this folder, moving to the next folder\n")
+            sys.stderr.flush()
+        else:
+            currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
+            reconstruction = currFolder + '/vdj.alignment'
+            if genome == 'hg38':
+                fasta = currFolder + 'Data/hg38/hg38.TCR.fa'
+                bed = currFolder + 'Data/hg38/hg38.TCR.bed'
+                mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
+                aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
+                refInd = currFolder + 'Data/hg38/index/hg38'
+            if genome == 'mm10':
+                fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
+                bed = currFolder + 'Data/mm10/mm10.TCR.bed'
+                mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
+                aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
+            if genome == 'mm10_ncbi':
+                fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
+                bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
+                mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
+                aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
+                refInd = currFolder + 'Data/mm10_ncbi/index/mm10'
+            if genome == 'hg19':
+                fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
+                bed = currFolder + 'Data/hg19/hg19.TCR.bed'
+                mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
+                aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
+
+        runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore,
+                    minOverlap, rsem, bowtie2, lowQ, samtools, refInd, trim)
 
 def addCellToTCRsum(cellFolder, noutput, opened, tcrFout):
     if os.path.isfile(noutput + '.summary.txt'):
@@ -467,6 +488,7 @@ def analyzeChainSingleEnd2(fastaDict, vdjDict, output, bam, unmapped, idNameDict
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq1, fastq2)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq1, fastq2)
 
+
 def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     if fastq.endswith('.gz'):
         subprocess.call(['gunzip', fastq])
@@ -476,14 +498,14 @@ def writeReadsFileSE(mappedReadsDict, outReads, fastq, fastq2):
     out = open(outReads, 'w')
     fqF = open(newFq, 'rU')
     for record in SeqIO.parse(fqF, 'fastq'):
-        if record.id in mappedReadsDict:       
+        if record.id in mappedReadsDict:
             newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
     fqF.close()
     fqF2 = open(fastq2, 'rU')
     for record in SeqIO.parse(fqF2, 'fastq'):
         if record.id in mappedReadsDict:
-            newRec = SeqRecord(record.seq[:], id = record.id, description = '')
+            newRec = SeqRecord(record.seq, id = record.id, description = '')
             SeqIO.write(newRec,out,'fasta')
     fqF2.close()
     out.close()
@@ -538,7 +560,7 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
     vSegs = [key for key,val in vSegs]
     jSegs = sorted(jSegs.items(), key=lambda x: -x[1])[:5]
     jSegs = [key for key,val in jSegs]
-    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:2]
+    cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:1]
     cSegs = [key for key,val in cSegs]
 
     print([idNameDict[val] for val in vSegs])
