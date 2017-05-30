@@ -67,7 +67,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
         return processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder)
  
     # parallel processing of each cell 
-    pool = ThreadPool(processes=20)
+    pool = ThreadPool(processes=40)
     pool.map(processCellWrapper, (cellFolder for cellFolder in os.listdir(path)))
     pool.close()
 
@@ -376,8 +376,9 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
 
-    mappedReadsDictAlpha = findReadsAndSegments(bam, mappedReadsDictAlpha, idNameDict, 'A')
-    mappedReadsDictBeta = findReadsAndSegments(bam, mappedReadsDictBeta, idNameDict, 'B')
+    aligned_bam = output + ".sorted.bam"
+    mappedReadsDictAlpha = findReadsAndSegments(aligned_bam, mappedReadsDictAlpha, idNameDict, 'A')
+    mappedReadsDictBeta = findReadsAndSegments(aligned_bam, mappedReadsDictBeta, idNameDict, 'B')
     
     writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
     writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
