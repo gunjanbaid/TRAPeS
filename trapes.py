@@ -268,6 +268,46 @@ def makeOutputDir(output, fullPath):
     noutput = fullPath + noutput
     return noutput
 
+def getSegCountsAndReads(vdjDict, bam, chain, segment):
+    jAlphaBeds = vdjDict[chain][segment]
+    jAlphaCounts = {}
+    jAlphaReads = {}
+    mappedFile = pysam.AlignmentFile(bam,"rb")
+    for j in jAlphaBeds:
+        parts = j.split()
+        chr = parts[0]
+        start = int(parts[1])
+        end = int(parts[2])
+        seg = parts[3]
+        if seg not in jAlphaCounts:
+            jAlphaCounts[seg] = 0
+            jAlphaReads[seg] = []
+        reads = mappedFile.fetch(chr, start-1, end+1)
+        for read in reads:
+            jAlphaCounts[seg] = jAlphaCounts[seg] + 1
+            jAlphaReads[seg].append(read)
+    return jAlphaCounts, jAlphaReads
+
+
+def getSegCountsAndReads2(vdjDict, bam, chain, segment):
+    jAlphaBeds = vdjDict[chain][segment]
+    jAlphaCounts = {}
+    jAlphaReads = {}
+    mappedFile = pysam.AlignmentFile(bam,"rb")
+    for j in jAlphaBeds:
+        parts = j.split()
+        chr = parts[3]
+        start = int(parts[1])
+        end = int(parts[2])
+        seg = parts[3]
+        if seg not in jAlphaCounts:
+            jAlphaCounts[seg] = 0
+            jAlphaReads[seg] = []
+        reads = mappedFile.fetch(chr, start-1, end+1)
+        for read in reads:
+            jAlphaCounts[seg] = jAlphaCounts[seg] + 1
+            jAlphaReads[seg].append(read)
+    return jAlphaCounts, jAlphaReads
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                   rsem, bowtie2, lowQ, samtools, refInd, trim):
@@ -277,6 +317,64 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
+
+    # getSegCountsAndReads does a good job of finding the V seg, but not the J.
+    jAlphaCounts, jAlphaReads = getSegCountsAndReads(vdjDict, bam, "Alpha", "J")
+    vAlphaCounts, vAlphaReads = getSegCountsAndReads(vdjDict, bam, "Alpha", "V")
+
+
+    # doesn't do a good job of finding jSegs, doesn't find any
+    # even if it found some, should not work well, no reads mapped to right J when
+    # checked manually 
+
+    topVAlphaReads = sorted(vAlphaCounts.items(), key=lambda x: -x[1])[0][0]
+    topVAlphaReads = [read.query_name for read in vAlphaReads[topVAlphaReads]]
+    top = sorted(vAlphaCounts.items(), key=lambda x: -x[1])[1][0]
+    top = [read.query_name for read in vAlphaReads[top]]
+    topVAlphaReads = topVAlphaReads + top
+
+    #bestJSegs = [jSeg for jSeg in jAlphaReads if set(jAlphaReads[jSeg]).intersection(set(topVAlphaReads))]
+    #print(output, idNameDict[topVAlphaReads[0][0]], idNameDict[topVAlphaReads[1][0]])
+   
+    mates = []
+    mappedFile = pysam.AlignmentFile(bam,"rb")
+    readsIter = mappedFile.fetch(until_eof=True)
+    for read in readsIter:
+        if read.query_name in topVAlphaReads:
+            mates.append(read)
+
+    mappedFile = pysam.AlignmentFile(unmapped,"rb")
+    readsIter = mappedFile.fetch(until_eof=True)
+    for read in readsIter:
+        if read.query_name in topVAlphaReads:
+            mates.append(read)
+
+    out = open(output + ".potentialJs.fq", 'w')
+    for record in mates:
+        newRec = SeqRecord(Seq(record.seq), id = record.query_name, description = '')
+        SeqIO.write(newRec,out,'fasta')
+    out.close()
+
+    if bowtie2 != '':
+        if bowtie2.endswith('/'):
+            bowtieCall = bowtie2 + 'bowtie2'
+        else:
+            bowtieCall = bowtie2 + '/bowtie2'
+    else:
+        bowtieCall = 'bowtie2'
+
+    potentialJs = output + ".potentialJs.fq"
+    temp1 = output + ".temp1.sam"
+    temp2 = output + ".temp2.sam"
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, "-f",  potentialJs, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, "-f", potentialJs , '-S', temp2, "--trim5", str(trim)])
+
+ 
+    import pdb; pdb.set_trace()
+    jAlphaCounts, jAlphaReads = getSegCountsAndReads2(vdjDict, output + ".potentialJs.bam", "Alpha", "J")
+    import pdb; pdb.set_trace()
+
+
     print(bam)
     paired_end = is_paired_end(bam)
 
@@ -353,7 +451,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     
     makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
                              unDictAlpha, unDictBeta, idNameDict)
-
+    
 
 
 def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand,
