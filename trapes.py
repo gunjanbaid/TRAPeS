@@ -67,7 +67,7 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations,thres
         return processCell(genome, output, bam, unmapped, bases, strand, numIterations,thresholdScore, minOverlap, rsem, bowtie2, singleCell, path, sumF, lowQ, samtools, trim, cellFolder)
  
     # parallel processing of each cell 
-    pool = ThreadPool(processes=40)
+    pool = ThreadPool(processes=20)
     pool.map(processCellWrapper, (cellFolder for cellFolder in os.listdir(path)))
     pool.close()
 
@@ -268,6 +268,46 @@ def makeOutputDir(output, fullPath):
     noutput = fullPath + noutput
     return noutput
 
+def getSegCountsAndReads(vdjDict, bam, chain, segment):
+    jAlphaBeds = vdjDict[chain][segment]
+    jAlphaCounts = {}
+    jAlphaReads = {}
+    mappedFile = pysam.AlignmentFile(bam,"rb")
+    for j in jAlphaBeds:
+        parts = j.split()
+        chr = parts[0]
+        start = int(parts[1])
+        end = int(parts[2])
+        seg = parts[3]
+        if seg not in jAlphaCounts:
+            jAlphaCounts[seg] = 0
+            jAlphaReads[seg] = []
+        reads = mappedFile.fetch(chr, start-1, end+1)
+        for read in reads:
+            jAlphaCounts[seg] = jAlphaCounts[seg] + 1
+            jAlphaReads[seg].append(read)
+    return jAlphaCounts, jAlphaReads
+
+
+def getSegCountsAndReads2(vdjDict, bam, chain, segment):
+    jAlphaBeds = vdjDict[chain][segment]
+    jAlphaCounts = {}
+    jAlphaReads = {}
+    mappedFile = pysam.AlignmentFile(bam,"rb")
+    for j in jAlphaBeds:
+        parts = j.split()
+        chr = parts[3]
+        start = int(parts[1])
+        end = int(parts[2])
+        seg = parts[3]
+        if seg not in jAlphaCounts:
+            jAlphaCounts[seg] = 0
+            jAlphaReads[seg] = []
+        reads = mappedFile.fetch(chr, start-1, end+1)
+        for read in reads:
+            jAlphaCounts[seg] = jAlphaCounts[seg] + 1
+            jAlphaReads[seg].append(read)
+    return jAlphaCounts, jAlphaReads
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations, thresholdScore, minOverlap,
                   rsem, bowtie2, lowQ, samtools, refInd, trim):
@@ -277,21 +317,23 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     idNameDict = makeIdNameDict(mapping)
     fastaDict = makeFastaDict(fasta)
     vdjDict = makeVDJBedDict(bed, idNameDict)
+
     print(bam)
     paired_end = is_paired_end(bam)
 
-    # import pdb; pdb.set_trace()
     if paired_end:
-        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        '''
+	print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
         unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
                                     bases, 'A', strand, lowQ, bowtie2, refInd, trim)
         print(str(datetime.datetime.now()) + " Pre-processing beta chain")
         unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, 
                                    bases, 'B', strand, lowQ, bowtie2, refInd, trim)
-        #analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
-        #                      strand, lowQ, bowtie2, refInd, trim)
-        #unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
-        #unDictBeta = dict(unDictAlpha)
+        '''
+	analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 
+                              strand, lowQ, bowtie2, refInd, trim)
+        unDictAlpha = write_unmapped_reads_to_dict_SE(unmapped)
+        unDictBeta = dict(unDictAlpha)
     else:
         print("hi, got here")
         print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
@@ -303,15 +345,14 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
 
     # import pdb; pdb.set_trace()
 
-    print(str(datetime.datetime.now()) + " Reconstructing beta chains")
-    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa',
-                     output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa',
-                     str(numIterations), str(thresholdScore), str(minOverlap)])
     print(str(datetime.datetime.now()) + " Reconstructing alpha chains")
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', 
                      output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', 
                      str(numIterations), str(thresholdScore), str(minOverlap)])
-
+    print(str(datetime.datetime.now()) + " Reconstructing beta chains")
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa',
+                     output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa',
+                     str(numIterations), str(thresholdScore), str(minOverlap)])
     
     print(str(datetime.datetime.now()) + " Creating full TCR sequencing")
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
@@ -353,7 +394,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     
     makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
                              unDictAlpha, unDictBeta, idNameDict)
-
+    
 
 
 def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand,
@@ -365,7 +406,7 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
             bowtieCall = bowtie2 + '/bowtie2'
     else:
         bowtieCall = 'bowtie2'
-    
+     
     fastq1 = output + ".unmapped.fq"
     fastq2 = output + ".sorted.fq"
 
@@ -376,13 +417,6 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     betaOutReads = output + '.beta.mapped.and.unmapped.fa'
     betaOut = output + '.beta.junctions.txt'
 
-    aligned_bam = output + ".sorted.bam"
-    mappedReadsDictAlpha = findReadsAndSegments(aligned_bam, mappedReadsDictAlpha, idNameDict, 'A')
-    mappedReadsDictBeta = findReadsAndSegments(aligned_bam, mappedReadsDictBeta, idNameDict, 'B')
-    
-    writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
-    writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
-    
     temp1 = output + '.temp1.sam'
     temp2 = output + '.temp2.sam'
     temp3 = output + '.temp3.sam'
@@ -390,6 +424,36 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     bam_filtered = output + '.filtered.bam'
     bam_sorted = output + '.sorted.bam'
 
+    subprocess.call([bowtieCall ,'-q --phred33', '-x', refInd, '-U', fastq2, '-S', temp1, "--trim3", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33', '-x', refInd, '-U', fastq2, '-S', temp2, "--trim5", str(trim)])
+    subprocess.call([bowtieCall ,'-q --phred33', '-x', refInd, '-U', fastq2, '-S', temp3, "--trim5", str(trim//2), "--trim3", str(trim//2)])
+    subprocess.call(["samtools", "merge", bam_trimmed, temp1, temp2, temp3])
+
+    bam_filtered_file = open(bam_filtered, "w")
+    subprocess.call(["samtools", "view", "-b", "-F", "4", bam_trimmed], stdout=bam_filtered_file)
+    bam_filtered_file.close()
+
+    bam_sorted_file = open(bam_sorted, "w")
+    subprocess.call(["samtools", "sort", bam_filtered], stdout=bam_sorted_file)
+    bam_sorted_file.close()
+
+    subprocess.call(["samtools", "index", bam_sorted])
+
+    mappedReadsDictAlpha = findReadsAndSegments(bam_sorted, mappedReadsDictAlpha, idNameDict, 'A')
+    mappedReadsDictBeta = findReadsAndSegments(bam_sorted, mappedReadsDictBeta, idNameDict, 'B')
+    vSegsA, jSegsA, cSegsA = writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
+    vSegsB, jSegsB, cSegsB = writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
+
+    allSegsA = vSegsA + jSegsA + cSegsA
+    allSegsB = vSegsB + jSegsB + cSegsB
+
+    mappedReadsDictAlpha = {}
+    mappedReadsDictBeta = {}
+    mappedReadsDictAlpha = findReadsAndSegments2(bam_sorted, mappedReadsDictAlpha, idNameDict, 'A', allSegsA)
+    mappedReadsDictBeta = findReadsAndSegments2(bam_sorted, mappedReadsDictBeta, idNameDict, 'B', allSegsB)
+
+    remove_file(temp1, temp2, temp3, bam_trimmed, bam_filtered, bam_sorted)
+     
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, '-S', temp1, "--trim3", str(trim)])
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, '-S', temp2, "--trim5", str(trim)])
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, '-S', temp3, "--trim5", str(trim//2), "--trim3", str(trim//2)])    
@@ -405,8 +469,8 @@ def analyzeChainSingleEnd(fastaDict, vdjDict, output, bam, unmapped, idNameDict,
     bam_sorted_file.close()
 
     subprocess.call(["samtools", "index", bam_sorted])
-    mappedReadsDictAlpha = findReadsAndSegments(bam_sorted, mappedReadsDictAlpha, idNameDict, 'A')
-    mappedReadsDictBeta = findReadsAndSegments(bam_sorted, mappedReadsDictBeta, idNameDict, 'B')
+    mappedReadsDictAlpha = findReadsAndSegments2(bam_sorted, mappedReadsDictAlpha, idNameDict, 'A', allSegsA)
+    mappedReadsDictBeta = findReadsAndSegments2(bam_sorted, mappedReadsDictBeta, idNameDict, 'B', allSegsB)
 
     writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq1, fastq2)
     writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq1, fastq2)
@@ -582,6 +646,7 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
                 for cSeg in cSegs:
                     addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict)
     out.close()
+    return vSegs, jSegs, cSegs
 
 
 def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
@@ -615,6 +680,24 @@ def addSegmentToJunctionFileSE(vSeg,jSeg,cSeg,out,fastaDict, bases, idNameDict):
     record = SeqRecord(Seq(junc,IUPAC.ambiguous_dna), id = recordName, description = '')
     SeqIO.write(record,out,'fasta')
 
+
+def findReadsAndSegments2(bamF, mappedReadsDict, idNameDict,chain, refs):
+    bamFile = pysam.AlignmentFile(bamF,'rb')
+    readsIter = bamFile.fetch()
+    for read in readsIter:
+        if read.is_unmapped == False:
+            seg = bamFile.getrname(read.reference_id)
+            if seg in idNameDict and seg in refs:
+                if idNameDict[seg].find(chain) != -1:
+                    readName = read.query_name
+                    if readName not in mappedReadsDict:
+                        mappedReadsDict[readName] = []
+                    if seg not in refs:
+			print(seg, refs)
+		    if seg not in mappedReadsDict[readName]:
+		        mappedReadsDict[readName].append(seg)
+    bamFile.close()
+    return mappedReadsDict
 
 def findReadsAndSegments(bamF, mappedReadsDict, idNameDict,chain):
     bamFile = pysam.AlignmentFile(bamF,'rb')
