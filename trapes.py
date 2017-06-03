@@ -621,13 +621,14 @@ def writeJunctionFileSE(mappedReadsDict,idNameDict, output, fastaDict, bases, ch
 		    cSegs[seg] = cSegs[seg] + 1
             else:
                 print "Error! not V/J/C in fasta dict"
+    import pdb; pdb.set_trace()
     vSegs = sorted(vSegs.items(), key=lambda x: -x[1])[:2]
     vSegs = [key for key,val in vSegs]
     jSegs = sorted(jSegs.items(), key=lambda x: -x[1])[:5]
     jSegs = [key for key,val in jSegs]
     cSegs = sorted(cSegs.items(), key=lambda x: -x[1])[:1]
     cSegs = [key for key,val in cSegs]
-
+  
     print([idNameDict[val] for val in vSegs])
     print([idNameDict[val] for val in jSegs])
     print([idNameDict[val] for val in cSegs])
@@ -688,7 +689,10 @@ def findReadsAndSegments2(bamF, mappedReadsDict, idNameDict,chain, refs):
         if read.is_unmapped == False:
             seg = bamFile.getrname(read.reference_id)
             if seg in idNameDict and seg in refs:
-                if idNameDict[seg].find(chain) != -1:
+                overlap = int(read.get_overlap(read.reference_start, read.reference_end))
+                if overlap < 5:
+                        continue
+		if idNameDict[seg].find(chain) != -1:
                     readName = read.query_name
                     if readName not in mappedReadsDict:
                         mappedReadsDict[readName] = []
@@ -703,10 +707,13 @@ def findReadsAndSegments(bamF, mappedReadsDict, idNameDict,chain):
     bamFile = pysam.AlignmentFile(bamF,'rb')
     readsIter = bamFile.fetch()
     for read in readsIter:
-        if read.is_unmapped == False:
+	if read.is_unmapped == False:
             seg = bamFile.getrname(read.reference_id)
             if seg in idNameDict:
-                if idNameDict[seg].find(chain) != -1:
+                overlap = int(read.get_overlap(read.reference_start, read.reference_end))
+		if overlap < 15:
+			continue
+		if idNameDict[seg].find(chain) != -1:
                     readName = read.query_name
                     if readName not in mappedReadsDict:
                         mappedReadsDict[readName] = []
