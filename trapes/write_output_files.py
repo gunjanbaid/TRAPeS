@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 """
 This module contains functions used to write output files containing summary statistics for individual cells and
 summary statistics for all cells.

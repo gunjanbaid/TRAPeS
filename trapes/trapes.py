@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 
 """
 This module contains functions to perform argument parsing, argument checking, and processing of each cell in the

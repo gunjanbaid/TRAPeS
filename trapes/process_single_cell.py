@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 """
 This module contains functions used to process each individual cell.
 

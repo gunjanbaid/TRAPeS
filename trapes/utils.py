@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 """
 This module contains utility functions for various tasks.
 

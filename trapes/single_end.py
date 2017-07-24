@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 """
 This modules contains functions used to process single-end cells.
 
