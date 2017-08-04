@@ -12,7 +12,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
-from paired_end import analyzeChain, runRsem
+from paired_end import analyze_chain, run_rsem
 from write_output_files import makeSingleCellOutputFile
 
 
@@ -23,12 +23,12 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     vdjDict = makeVDJBedDict(bed, idNameDict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    unDictAlpha = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top,
-                               byExp, readOverlap)
+    unDictAlpha = analyze_chain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top,
+                                byExp, readOverlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
     sys.stdout.flush()
-    unDictBeta = analyzeChain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top,
-                              byExp, readOverlap)
+    unDictBeta = analyze_chain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top,
+                               byExp, readOverlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt',
@@ -43,11 +43,11 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
     sys.stdout.flush()
     fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.alpha.fa'
-    (cSeq, cName, cId) = getCInfo(vdjDict['Alpha']['C'][0], idNameDict, fastaDict)
+    (cSeq, cName, cId) = get_c_info(vdjDict['Alpha']['C'][0], idNameDict, fastaDict)
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict, cSeq, cName, cId, oneSide)
     fullTcrFileBeta = output + '.beta.full.TCRs.fa'
     tcrF = output + '.reconstructed.junctions.beta.fa'
-    (cSeq, cName, cId) = getCInfo(vdjDict['Beta']['C'][0], idNameDict, fastaDict)
+    (cSeq, cName, cId) = get_c_info(vdjDict['Beta']['C'][0], idNameDict, fastaDict)
     createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta, bases, idNameDict, cSeq, cName, cId, oneSide)
     sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     sys.stdout.flush()
@@ -56,7 +56,7 @@ def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, rec
         outDir = output[:outDirInd + 1]
     else:
         outDir = os.getcwd()
-    runRsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
+    run_rsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
     bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
     bestBeta = output + '.beta.full.TCRs.bestIso.fa'
@@ -155,7 +155,7 @@ def makeAADict(aaF):
     return fDict
 
 
-def getCInfo(bedEntry, idNameDict, fastaDict):
+def get_c_info(bedEntry, idNameDict, fastaDict):
     bedArr = bedEntry.strip('\n').split('\t')
     cId = bedArr[3]
     cName = idNameDict[cId]
