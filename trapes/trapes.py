@@ -10,10 +10,9 @@ import sys
 import os
 import argparse
 import datetime
-
-from utils import format_files
-from write_output_files import add_cell_to_tcr_sum, add_to_stat_dict
-from process_single_cell import run_single_cell
+import utils
+import write_output_files
+import process_single_cell
 
 
 def check_parameters(genome, strand, single_cell, path, sum_f):
@@ -33,8 +32,8 @@ def check_parameters(genome, strand, single_cell, path, sum_f):
 # def runTCRpipe(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF , numIterations,
 # thresholdScore, minOverlap,
 # rsem, bowtie2, singleCell, path, subpath, sumF, lowQ, singleEnd, fastq, trimmomatic, transInd):
-def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, threshold_score, min_overlap, rsem, bowtie2,
-                 single_cell, path, sum_f, low_q, samtools, top, by_exp, read_overlap, one_side):
+def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, threshold_score, min_overlap, rsem,
+                 bowtie2, single_cell, path, sum_f, low_q, samtools, top, by_exp, read_overlap, one_side):
     check_parameters(genome, strand, single_cell, path, sum_f)
     if single_cell == True:
         # TODO: Fix this, won't work for SE
@@ -54,7 +53,7 @@ def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
         if ((os.path.exists(full_path)) & (os.path.isdir(full_path))):
             sys.stdout.write(str(datetime.datetime.now()) + " Working on: " + cell_folder + '\n')
             sys.stdout.flush()
-            (found, nbam, nunmapped, noutput) = format_files(full_path, bam, unmapped, output)
+            (found, nbam, nunmapped, noutput) = utils.format_files(full_path, bam, unmapped, output)
             if not found:
                 sys.stderr.write(str(datetime.datetime.now()) + " There is not a bam or unmapped file in "
                                                                 "this folder, moving to the next folder\n")
@@ -83,11 +82,13 @@ def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
                     mapping = curr_folder + 'data/hg19/hg19.gene.id.mapping.TCR.txt'
                     aa_f = curr_folder + 'data/hg19/hg19.conserved.AA.txt'
 
-                run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aa_f,
-                                num_iterations, threshold_score,
-                                min_overlap, rsem, bowtie2, low_q, samtools, top, by_exp, read_overlap, one_side)
-                opened = add_cell_to_tcr_sum(cell_folder, noutput, opened, tcr_fout)
-                final_stat_dict = add_to_stat_dict(noutput, cell_folder, final_stat_dict)
+                process_single_cell.run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand,
+                                                    reconstruction, aa_f,
+                                                    num_iterations, threshold_score,
+                                                    min_overlap, rsem, bowtie2, low_q, samtools, top, by_exp,
+                                                    read_overlap, one_side)
+                opened = write_output_files.add_cell_to_tcr_sum(cell_folder, noutput, opened, tcr_fout)
+                final_stat_dict = write_output_files.add_to_stat_dict(noutput, cell_folder, final_stat_dict)
     sum_f_out = open(sum_f + '.summary.txt', 'w')
     sum_f_out.write(']ample\talpha\tbeta\n')
     for cell in sorted(final_stat_dict):
@@ -101,9 +102,9 @@ if __name__ == '__main__':
     parser.add_argument('-genome', '-g', '-G', help='Alignment genome. Currently supported: mm10, mm10_ncbi and hg38',
                         required=True)
     parser.add_argument('-single_cell', help='add if you are only running on a single cell. If so,'
-                                            'it will ignore -path and -subpath arguments', action='store_true')
+                                             'it will ignore -path and -subpath arguments', action='store_true')
     parser.add_argument('-low_q', help='add if you want to add \"low quality\" reads as input to the reconstruction '
-                                      'algorithm', action='store_true')
+                                       'algorithm', action='store_true')
     parser.add_argument('-one_side', help='add if you want to observe reconstrctuion only from the V side',
                         action='store_true')
     parser.add_argument('-path', '-p', '-P', help='The path for the data directory. Assumes that every subdirectory'

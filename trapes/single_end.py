@@ -50,7 +50,8 @@ def analyze_chain_single_end(fastq, trimmomatic, trans_ind, bowtie2, id_name_dic
                     bowtie_call = bowtie2 + '/bowtie2'
             else:
                 bowtie_call = 'bowtie2'
-            subprocess.call([bowtie_call, '-q --phred33  --score-min L,0,0', '-x', trans_ind, '-U', trim_fq, '-S', sam_f])
+            subprocess.call(
+                [bowtie_call, '-q --phred33  --score-min L,0,0', '-x', trans_ind, '-U', trim_fq, '-S', sam_f])
             if os.path.isfile(sam_f):
                 mapped_reads_dict_alpha = find_reads_and_segments(sam_f, mapped_reads_dict_alpha, id_name_dict, 'A')
                 mapped_reads_dict_beta = find_reads_and_segments(sam_f, mapped_reads_dict_beta, id_name_dict, 'B')

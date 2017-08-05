@@ -84,10 +84,12 @@ def write_chain(out_f, chain, cdr_dict, rsem_f, bam_f, fasta_dict, un_dict, outp
             j_id = name_arr[4]
             c_id = name_arr[5]
             if cdr_dict[tcr]['CDR3 NT'] != 'NA':
-                (un_dict_ratio_cdr, un_cdr_count) = get_un_dict_ratio(bam_f, cdr_ind, cdr_ind + len(cdr_dict[tcr]['CDR3 NT']), tcr,
+                (un_dict_ratio_cdr, un_cdr_count) = get_un_dict_ratio(bam_f, cdr_ind,
+                                                                      cdr_ind + len(cdr_dict[tcr]['CDR3 NT']), tcr,
                                                                       un_dict)
                 (un_dict_ratio_all, un_all_count) = get_un_dict_ratio(bam_f, 0, len(full_seq), tcr, un_dict)
-                f_line += str(un_dict_ratio_all) + '\t' + str(un_all_count) + '\t' + str(un_dict_ratio_cdr) + '\t' + str(
+                f_line += str(un_dict_ratio_all) + '\t' + str(un_all_count) + '\t' + str(
+                    un_dict_ratio_cdr) + '\t' + str(
                     un_cdr_count) + '\t'
             else:
                 f_line += 'NA\tNA\tNA\tNA\t'
@@ -95,8 +97,9 @@ def write_chain(out_f, chain, cdr_dict, rsem_f, bam_f, fasta_dict, un_dict, outp
             written_arr.append(j_id)
             f_line += v_id + '\t' + j_id + '\t' + c_id + '\n'
         else:
-            f_line += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t' + name_arr[3] + '\t' + name_arr[4] + '\t' + name_arr[
-                5] + '\n'
+            f_line += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t' + name_arr[3] + '\t' + name_arr[4] + '\t' + \
+                      name_arr[
+                          5] + '\n'
 
             # print fLine
 
@@ -296,7 +299,7 @@ def add_to_stat_dict(noutput, cell_folder, final_stat_dict):
     if cell_folder in final_stat_dict:
         print "Error! %s appear more than once in final stat dictionary" % cell_folder
     final_stat_dict[cell_folder] = {'alpha': 'Failed - found V and J segments but wasn\'t able to extend them',
-                                 'beta': 'Failed - found V and J segments but wasn\'t able to extend them'}
+                                    'beta': 'Failed - found V and J segments but wasn\'t able to extend them'}
     if os.path.isfile(noutput + '.summary.txt'):
         curr_out = open(noutput + '.summary.txt', 'r')
         msg_a = 'None'

@@ -11,10 +11,10 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
+import paired_end
+import write_output_files
+import utils
 
-from paired_end import analyze_chain, run_rsem
-from write_output_files import make_single_cell_output_file
-from utils import get_c_info
 
 def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aa_f, num_iterations,
                     threshold_score, min_overlap, rsem, bowtie2, low_q, samtools, top, by_exp, read_overlap, one_side):
@@ -23,12 +23,15 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
     vdj_dict = make_vdj_bed_dict(bed, id_name_dict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    un_dict_alpha = analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A', strand, low_q, top,
-                                by_exp, read_overlap)
+    un_dict_alpha = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A',
+                                             strand,
+                                             low_q, top,
+                                             by_exp, read_overlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
     sys.stdout.flush()
-    un_dict_beta = analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B', strand, low_q, top,
-                               by_exp, read_overlap)
+    un_dict_beta = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B',
+                                            strand, low_q, top,
+                                            by_exp, read_overlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt',
@@ -43,11 +46,11 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
     sys.stdout.flush()
     full_tcr_file_alpha = output + '.alpha.full.TCRs.fa'
     tcr_f = output + '.reconstructed.junctions.alpha.fa'
-    (c_seq, c_name, c_id) = get_c_info(vdj_dict['Alpha']['C'][0], id_name_dict, fasta_dict)
+    (c_seq, c_name, c_id) = utils.get_c_info(vdj_dict['Alpha']['C'][0], id_name_dict, fasta_dict)
     create_tcr_full_output(fasta_dict, tcr_f, full_tcr_file_alpha, bases, id_name_dict, c_seq, c_name, c_id, one_side)
     full_tcr_file_beta = output + '.beta.full.TCRs.fa'
     tcr_f = output + '.reconstructed.junctions.beta.fa'
-    (c_seq, c_name, c_id) = get_c_info(vdj_dict['Beta']['C'][0], id_name_dict, fasta_dict)
+    (c_seq, c_name, c_id) = utils.get_c_info(vdj_dict['Beta']['C'][0], id_name_dict, fasta_dict)
     create_tcr_full_output(fasta_dict, tcr_f, full_tcr_file_beta, bases, id_name_dict, c_seq, c_name, c_id, one_side)
     sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     sys.stdout.flush()
@@ -56,7 +59,7 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
         out_dir = output[:out_dir_ind + 1]
     else:
         out_dir = os.getcwd()
-    run_rsem(out_dir, rsem, bowtie2, full_tcr_file_alpha, full_tcr_file_beta, output, samtools)
+    paired_end.run_rsem(out_dir, rsem, bowtie2, full_tcr_file_alpha, full_tcr_file_beta, output, samtools)
     pick_final_isoforms(full_tcr_file_alpha, full_tcr_file_beta, output)
     best_alpha = output + '.alpha.full.TCRs.bestIso.fa'
     best_beta = output + '.beta.full.TCRs.bestIso.fa'
@@ -77,8 +80,9 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
     beta_bam = output + '.beta.rsem.out.transcript.sorted.bam'
     sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
     sys.stdout.flush()
-    make_single_cell_output_file(f_dict_alpha, f_dict_beta, output, beta_rsem_out, alpha_rsem_out, alpha_bam, beta_bam, fasta_dict,
-                                 un_dict_alpha, un_dict_beta, id_name_dict)
+    write_output_files.make_single_cell_output_file(f_dict_alpha, f_dict_beta, output, beta_rsem_out, alpha_rsem_out,
+                                                    alpha_bam, beta_bam, fasta_dict,
+                                                    un_dict_alpha, un_dict_beta, id_name_dict)
 
 
 # Creates a dictionary of ENSEMBL ID -> Gene name
@@ -154,6 +158,7 @@ def make_aa_dict(aa_f):
     f.close()
     return f_dict
 
+
 def create_tcr_full_output(fasta_dict, tcr, out_name, bases, map_dict, c_seq, c_name, c_id, one_side):
     tcr_f = open(tcr, 'rU')
     found = False
@@ -171,7 +176,8 @@ def create_tcr_full_output(fasta_dict, tcr, out_name, bases, map_dict, c_seq, c_
             j_ens = id_arr[1].split('(')[0]
             v_seq = fasta_dict[v_ens]
             j_seq = fasta_dict[j_ens]
-            rec_name_arr = write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq, c_id,
+            rec_name_arr = write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases,
+                                        c_seq, c_id,
                                         c_name, out_f, fasta_dict, rec_name_arr)
         elif one_side:
             cur_seq = tcr_seq.split('NNNN')[0]
@@ -185,7 +191,8 @@ def create_tcr_full_output(fasta_dict, tcr, out_name, bases, map_dict, c_seq, c_
                 v_seq = fasta_dict[v_ens]
                 for j_ens in j_seg:
                     j_seq = fasta_dict[j_ens]
-                    rec_name_arr = write_record(tcr_record, cur_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq,
+                    rec_name_arr = write_record(tcr_record, cur_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict,
+                                                bases, c_seq,
                                                 c_id, c_name, out_f, fasta_dict, rec_name_arr)
     tcr_f.close()
     if found == True:
@@ -222,7 +229,8 @@ def find_js_per_len(cur_seq, fasta_dict, id_name_dict, trim):
     return f_arr
 
 
-def write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq, c_id, c_name, out_f, fasta_dict,
+def write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq, c_id, c_name, out_f,
+                 fasta_dict,
                  rec_name_arr):
     v_seq_trim = ''
     j_seq_trim = ''
@@ -268,7 +276,8 @@ def write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_d
         for ens in c_arr:
             c_seq = fasta_dict[ens]
             new_seq = v_seq_trim + tcr_seq + j_seq_trim + c_seq
-            new_id = map_dict[v_ens] + '.' + map_dict[j_ens] + '.' + map_dict[ens] + '.' + v_ens + '.' + j_ens + '.' + ens
+            new_id = map_dict[v_ens] + '.' + map_dict[j_ens] + '.' + map_dict[
+                ens] + '.' + v_ens + '.' + j_ens + '.' + ens
             while new_id in rec_name_arr:
                 new_id += '_2'
             rec_name_arr.append(new_id)

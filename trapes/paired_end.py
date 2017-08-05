@@ -19,7 +19,8 @@ from utils import get_c_info
 
 def analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, chain, strand, low_q, top, by_exp,
                   read_overlap):
-    junction_segs = make_junction_file(bam, chain, output, bases, vdj_dict, fasta_dict, id_name_dict, top, by_exp, read_overlap)
+    junction_segs = make_junction_file(bam, chain, output, bases, vdj_dict, fasta_dict, id_name_dict, top, by_exp,
+                                       read_overlap)
     un_dict = write_reads_file(bam, unmapped, junction_segs, output, vdj_dict, chain, strand, low_q)
     return un_dict
 
@@ -104,9 +105,9 @@ def write_junctions(vj_reads, out_name, bases, fasta_dict, id_name_dict, c_seq, 
                             pair_count_dict[record] = cur_cont
     sorted_pairs = sorted(pair_count_dict.items(), key=operator.itemgetter(1), reverse=True)
     if ((top == -1) | (top > len(sorted_pairs))):
-        for rec,count in sorted_pairs:
+        for rec, count in sorted_pairs:
             SeqIO.write(rec, out, 'fasta')
-    else:`
+    else:
         if not by_exp:
             for i in range(0, top):
                 SeqIO.write(sorted_pairs[i][0], out, 'fasta')
@@ -250,28 +251,40 @@ def write_reads_file(bam, unmapped, junction_segs, output, vdj_dict, chain, stra
     mapped_pairs_dict = dict()
     low_q_dict = dict()
     for seg in const_dict:
-        (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict, seg, bam, out,
-                                                                                                   False, aligned_dict, seq_dict,
-                                                                                                   strand, 'C', mapped_pairs_dict,
+        (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict, seg,
+                                                                                                   bam, out,
+                                                                                                   False, aligned_dict,
+                                                                                                   seq_dict,
+                                                                                                   strand, 'C',
+                                                                                                   mapped_pairs_dict,
                                                                                                    low_q_dict)
     v_segs = vdj_chain_dict['V']
     for v_seg in v_segs:
         v_seg_name = v_seg.strip('\n').split('\t')[3]
         if v_seg_name in junction_segs:
-            (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict, v_seg, bam,
-                                                                                                       out, True, aligned_dict,
-                                                                                                       seq_dict, strand, 'V',
-                                                                                                       mapped_pairs_dict, low_q_dict)
+            (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict,
+                                                                                                       v_seg, bam,
+                                                                                                       out, True,
+                                                                                                       aligned_dict,
+                                                                                                       seq_dict, strand,
+                                                                                                       'V',
+                                                                                                       mapped_pairs_dict,
+                                                                                                       low_q_dict)
     jSegs = vdj_chain_dict['J']
     for jSeg in jSegs:
         jSegName = jSeg.strip('\n').split('\t')[3]
         if jSegName in junction_segs:
-            (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict, jSeg, bam,
-                                                                                                       out, True, aligned_dict,
-                                                                                                       seq_dict, strand, 'J',
-                                                                                                       mapped_pairs_dict, low_q_dict)
+            (unmapped_dict, aligned_dict, seq_dict, mapped_pairs_dict, low_q_dict) = add_reads_to_dict(unmapped_dict,
+                                                                                                       jSeg, bam,
+                                                                                                       out, True,
+                                                                                                       aligned_dict,
+                                                                                                       seq_dict, strand,
+                                                                                                       'J',
+                                                                                                       mapped_pairs_dict,
+                                                                                                       low_q_dict)
     un_dict = dict()
-    (seq_dict, un_dict) = write_unmapped_reads(unmapped_dict, out, unmapped, seq_dict, un_dict, aligned_dict, low_q_dict, low_q)
+    (seq_dict, un_dict) = write_unmapped_reads(unmapped_dict, out, unmapped, seq_dict, un_dict, aligned_dict,
+                                               low_q_dict, low_q)
     seq_dict = add_mapped_pairs_to_seq_dict(seq_dict, bam, out, low_q, aligned_dict)
     write_seq_dict(seq_dict, paired_reads_1, paired_reads_2)
     out.close()
@@ -279,7 +292,8 @@ def write_reads_file(bam, unmapped, junction_segs, output, vdj_dict, chain, stra
 
 
 # Aligned dict - all the reads (with _1/_2) that were already written to the mapped.unmapped.fa file
-def add_reads_to_dict(unmapped_dict, seg_bed, bam, out, mapped_read, aligned_dict, seq_dict, strand, seg_type, mapped_pairs_dict,
+def add_reads_to_dict(unmapped_dict, seg_bed, bam, out, mapped_read, aligned_dict, seq_dict, strand, seg_type,
+                      mapped_pairs_dict,
                       low_q_dict):
     bed_arr = seg_bed.strip('\n').split('\t')
     chr = bed_arr[0]

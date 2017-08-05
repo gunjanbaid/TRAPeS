@@ -5,6 +5,7 @@ This module contains utility functions for various tasks.
 
 import os
 
+
 def format_files(full_path, bam, unmapped, output):
     found = True
     nbam = full_path + bam
@@ -78,10 +79,10 @@ def find_stop(st_p, stop_arr):
             return x
     return -1
 
+
 def get_c_info(bed_entry, id_name_dict, fasta_dict):
     bed_arr = bed_entry.strip('\n').split('\t')
     c_id = bed_arr[3]
     c_name = id_name_dict[c_id]
     c_seq = fasta_dict[c_id]
     return (c_seq, c_name, c_id)
-
