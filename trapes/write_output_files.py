@@ -7,372 +7,372 @@ summary statistics for all cells.
 import os
 
 
-def make_single_cell_output_file(alphaDict, betaDict, output, betaRsem, alphaRsem, alphaBam, betaBam, fastaDict,
-                                 unDictAlpha, unDictBeta, idNameDict):
-    outF = open(output + '.summary.txt', 'w')
-    outF.write(
+def make_single_cell_output_file(alpha_dict, beta_dict, output, beta_rsem, alpha_rsem, alpha_bam, beta_bam, fasta_dict,
+                                 un_dict_alpha, un_dict_beta, id_name_dict):
+    out_f = open(output + '.summary.txt', 'w')
+    out_f.write(
         'Chain\tStatus\tRank of TCR\tV\tJ\tC\tCDR3 NT\tCDR3 AA\t#reads in TCR\t#reads in CDR3\t#reads in V\t#reads in '
         'J\t#reads in C\t%unmapped reads used in the reconstruction\t# unmapped reads used in the '
         'reconstruction\t%unmapped reads in CDR3\t#unmapped reads in CDR3\tV ID\tJ ID\tC ID\n')
-    if (len(alphaDict) > 0):
-        writeChain(outF, 'alpha', alphaDict, alphaRsem, alphaBam, fastaDict, unDictAlpha, output, idNameDict)
-    if (len(betaDict) > 0):
-        writeChain(outF, 'beta', betaDict, betaRsem, betaBam, fastaDict, unDictBeta, output, idNameDict)
-    outF.close()
+    if (len(alpha_dict) > 0):
+        write_chain(out_f, 'alpha', alpha_dict, alpha_rsem, alpha_bam, fasta_dict, un_dict_alpha, output, id_name_dict)
+    if (len(beta_dict) > 0):
+        write_chain(out_f, 'beta', beta_dict, beta_rsem, beta_bam, fasta_dict, un_dict_beta, output, id_name_dict)
+    out_f.close()
 
 
-def writeChain(outF, chain, cdrDict, rsemF, bamF, fastaDict, unDict, output, idNameDict):
-    writtenArr = []
-    if os.path.exists(rsemF):
-        noRsem = False
-        (rsemDict, unRsemDict) = makeRsemDict(rsemF, cdrDict)
+def write_chain(out_f, chain, cdr_dict, rsem_f, bam_f, fasta_dict, un_dict, output, id_name_dict):
+    written_arr = []
+    if os.path.exists(rsem_f):
+        no_rsem = False
+        (rsem_dict, un_rsem_dict) = make_rsem_dict(rsem_f, cdr_dict)
     else:
-        noRsem = True
-    for tcr in cdrDict:
-        jStart = -1
-        cdrInd = -1
-        cInd = -1
-        if cdrDict[tcr]['stat'] == 'Productive':
-            isProd = True
+        no_rsem = True
+    for tcr in cdr_dict:
+        j_start = -1
+        cdr_ind = -1
+        c_ind = -1
+        if cdr_dict[tcr]['stat'] == 'Productive':
+            is_prod = True
         else:
-            isProd = False
-        fLine = chain + '\t' + cdrDict[tcr]['stat'] + '\t'
-        if noRsem:
+            is_prod = False
+        f_line = chain + '\t' + cdr_dict[tcr]['stat'] + '\t'
+        if no_rsem:
             rank = 'NA'
         else:
-            rank = getRank(tcr, rsemDict, unRsemDict, isProd, noRsem)
-        fLine += str(rank) + '\t'
-        nameArr = tcr.split('.')
-        fLine += nameArr[0] + '\t' + nameArr[1] + '\t' + nameArr[2] + '\t'
-        fLine += cdrDict[tcr]['CDR3 NT'] + '\t' + cdrDict[tcr]['CDR3 AA'] + '\t'
-        fullSeq = cdrDict[tcr]['Full Seq'].upper()
-        if not noRsem:
-            totalCount = findCountsInRegion(bamF, 0, len(fullSeq), tcr)
-            fLine += str(totalCount) + '\t'
-            cName = nameArr[5]
-            while cName.endswith('_2'):
-                cName = cName[:-2]
-            cSeq = fastaDict[cName].upper()
-            cInd = fullSeq.find(cSeq)
-            if cInd == -1:
+            rank = get_rank(tcr, rsem_dict, un_rsem_dict, is_prod, no_rsem)
+        f_line += str(rank) + '\t'
+        name_arr = tcr.split('.')
+        f_line += name_arr[0] + '\t' + name_arr[1] + '\t' + name_arr[2] + '\t'
+        f_line += cdr_dict[tcr]['CDR3 NT'] + '\t' + cdr_dict[tcr]['CDR3 AA'] + '\t'
+        full_seq = cdr_dict[tcr]['Full Seq'].upper()
+        if not no_rsem:
+            total_count = find_counts_in_region(bam_f, 0, len(full_seq), tcr)
+            f_line += str(total_count) + '\t'
+            c_name = name_arr[5]
+            while c_name.endswith('_2'):
+                c_name = c_name[:-2]
+            c_seq = fasta_dict[c_name].upper()
+            c_ind = full_seq.find(c_seq)
+            if c_ind == -1:
                 sys.stderr.write(
                     str(datetime.datetime.now()) + 'Error! could not find C segment sequence in the full sequence\n')
                 sys.stderr.flush()
-                cCounts = 'NA'
+                c_counts = 'NA'
             else:
-                cCounts = findCountsInRegion(bamF, cInd, len(fullSeq), tcr)
-            if cdrDict[tcr]['CDR3 NT'] != 'NA':
-                cdrInd = fullSeq.find(cdrDict[tcr]['CDR3 NT'].upper())
+                c_counts = find_counts_in_region(bam_f, c_ind, len(full_seq), tcr)
+            if cdr_dict[tcr]['CDR3 NT'] != 'NA':
+                cdr_ind = full_seq.find(cdr_dict[tcr]['CDR3 NT'].upper())
             else:
-                cdrInd = -1
-            if ((cdrInd == -1) & (cdrDict[tcr]['CDR3 NT'] != 'NA')):
+                cdr_ind = -1
+            if ((cdr_ind == -1) & (cdr_dict[tcr]['CDR3 NT'] != 'NA')):
                 sys.stderr.write(
                     str(datetime.datetime.now()) + ' Error! Cound not find CDR3 NT sequence in the full sequence\n')
                 sys.stderr.flush()
-            if cdrInd != -1:
-                cdrCounts = findCountsInRegion(bamF, cdrInd, cdrInd + len(cdrDict[tcr]['CDR3 NT']), tcr)
-                jStart = cdrInd + len(cdrDict[tcr]['CDR3 NT'])
-                if cInd != -1:
-                    jCounts = findCountsInRegion(bamF, jStart, cInd, tcr)
+            if cdr_ind != -1:
+                cdr_counts = find_counts_in_region(bam_f, cdr_ind, cdr_ind + len(cdr_dict[tcr]['CDR3 NT']), tcr)
+                j_start = cdr_ind + len(cdr_dict[tcr]['CDR3 NT'])
+                if c_ind != -1:
+                    j_counts = find_counts_in_region(bam_f, j_start, c_ind, tcr)
                 else:
-                    jCounts = findCountsInRegion(bamF, jStart, jStart + 50, tcr)
-                vCounts = findCountsInRegion(bamF, 0, cdrInd, tcr)
-                fLine += str(cdrCounts) + '\t' + str(vCounts) + '\t' + str(jCounts) + '\t' + str(cCounts) + '\t'
+                    j_counts = find_counts_in_region(bam_f, j_start, j_start + 50, tcr)
+                v_counts = find_counts_in_region(bam_f, 0, cdr_ind, tcr)
+                f_line += str(cdr_counts) + '\t' + str(v_counts) + '\t' + str(j_counts) + '\t' + str(c_counts) + '\t'
             else:
-                fLine += 'NA\tNA\tNA\t' + str(cCounts) + '\t'
-            vId = nameArr[3]
-            jId = nameArr[4]
-            cId = nameArr[5]
-            if cdrDict[tcr]['CDR3 NT'] != 'NA':
-                (unDictRatioCDR, unCDRcount) = getUnDictRatio(bamF, cdrInd, cdrInd + len(cdrDict[tcr]['CDR3 NT']), tcr,
-                                                              unDict)
-                (unDictRatioALL, unAllcount) = getUnDictRatio(bamF, 0, len(fullSeq), tcr, unDict)
-                fLine += str(unDictRatioALL) + '\t' + str(unAllcount) + '\t' + str(unDictRatioCDR) + '\t' + str(
-                    unCDRcount) + '\t'
+                f_line += 'NA\tNA\tNA\t' + str(c_counts) + '\t'
+            v_id = name_arr[3]
+            j_id = name_arr[4]
+            c_id = name_arr[5]
+            if cdr_dict[tcr]['CDR3 NT'] != 'NA':
+                (un_dict_ratio_cdr, un_cdr_count) = get_un_dict_ratio(bam_f, cdr_ind, cdr_ind + len(cdr_dict[tcr]['CDR3 NT']), tcr,
+                                                                      un_dict)
+                (un_dict_ratio_all, un_all_count) = get_un_dict_ratio(bam_f, 0, len(full_seq), tcr, un_dict)
+                f_line += str(un_dict_ratio_all) + '\t' + str(un_all_count) + '\t' + str(un_dict_ratio_cdr) + '\t' + str(
+                    un_cdr_count) + '\t'
             else:
-                fLine += 'NA\tNA\tNA\tNA\t'
-            writtenArr.append(vId)
-            writtenArr.append(jId)
-            fLine += vId + '\t' + jId + '\t' + cId + '\n'
+                f_line += 'NA\tNA\tNA\tNA\t'
+            written_arr.append(v_id)
+            written_arr.append(j_id)
+            f_line += v_id + '\t' + j_id + '\t' + c_id + '\n'
         else:
-            fLine += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t' + nameArr[3] + '\t' + nameArr[4] + '\t' + nameArr[
+            f_line += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\t' + name_arr[3] + '\t' + name_arr[4] + '\t' + name_arr[
                 5] + '\n'
 
             # print fLine
 
-        outF.write(str(fLine))
-    writeFailedReconstructions(outF, chain, writtenArr, output, idNameDict, fastaDict)
+        out_f.write(str(f_line))
+    write_failed_reconstructions(out_f, chain, written_arr, output, id_name_dict, fasta_dict)
 
 
-def makeRsemDict(rsemF, cdrDict):
-    fDict = dict()
-    unDict = dict()
-    f = open(rsemF, 'r')
+def make_rsem_dict(rsem_f, cdr_dict):
+    f_dict = dict()
+    un_dict = dict()
+    f = open(rsem_f, 'r')
     f.readline()
     l = f.readline()
     while l != '':
-        lArr = l.strip('\n').split('\t')
-        name = lArr[1]
-        if name in cdrDict:
-            if cdrDict[name]['stat'] == 'Productive':
-                fDict[name] = float(lArr[4])
-            unDict[name] = float(lArr[4])
+        l_arr = l.strip('\n').split('\t')
+        name = l_arr[1]
+        if name in cdr_dict:
+            if cdr_dict[name]['stat'] == 'Productive':
+                f_dict[name] = float(l_arr[4])
+            un_dict[name] = float(l_arr[4])
         l = f.readline()
     f.close()
-    return (fDict, unDict)
+    return (f_dict, un_dict)
 
 
-def getRank(tcr, rsemDict, unRsemDict, isProd, noRsem):
-    if isProd:
-        currDict = rsemDict
+def get_rank(tcr, rsem_dict, un_rsem_dict, is_prod, no_rsem):
+    if is_prod:
+        curr_dict = rsem_dict
     else:
-        currDict = unRsemDict
-    if not noRsem:
-        currCount = currDict[tcr]
+        curr_dict = un_rsem_dict
+    if not no_rsem:
+        curr_count = curr_dict[tcr]
         rank = 1
-        for rec in currDict:
+        for rec in curr_dict:
             if rec != tcr:
-                if unRsemDict[rec] > currCount:
+                if un_rsem_dict[rec] > curr_count:
                     rank += 1
         return rank
     else:
         return 'NA'
 
 
-def findCountsInRegion(bamF, start, end, tcr):
-    readsArr = []
-    mappedFile = pysam.AlignmentFile(bamF, "rb")
-    readsIter = mappedFile.fetch(tcr, start, end)
-    for read in readsIter:
+def find_counts_in_region(bam_f, start, end, tcr):
+    reads_arr = []
+    mapped_file = pysam.AlignmentFile(bam_f, "rb")
+    reads_iter = mapped_file.fetch(tcr, start, end)
+    for read in reads_iter:
         if read.is_read1:
-            newName = read.query_name + '_1'
+            new_name = read.query_name + '_1'
         else:
-            newName = read.query_name + '_2'
-        if newName not in readsArr:
-            readsArr.append(newName)
-    mappedFile.close()
-    counts = len(readsArr)
+            new_name = read.query_name + '_2'
+        if new_name not in reads_arr:
+            reads_arr.append(new_name)
+    mapped_file.close()
+    counts = len(reads_arr)
     return counts
 
 
-def getUnDictRatio(bamF, start, end, tcr, unDict):
-    unMappedCount = 0
-    usedArr = []
-    mappedFile = pysam.AlignmentFile(bamF, "rb")
-    readsIter = mappedFile.fetch(tcr, start, end)
-    for read in readsIter:
+def get_un_dict_ratio(bam_f, start, end, tcr, un_dict):
+    un_mapped_count = 0
+    used_arr = []
+    mapped_file = pysam.AlignmentFile(bam_f, "rb")
+    reads_iter = mapped_file.fetch(tcr, start, end)
+    for read in reads_iter:
         if read.is_read1:
-            newName = read.query_name + '_1'
+            new_name = read.query_name + '_1'
         else:
-            newName = read.query_name + '_2'
-        if newName not in usedArr:
-            usedArr.append(newName)
-            if newName in unDict:
-                unMappedCount += 1
-    mappedFile.close()
-    return (float(float(unMappedCount) / len(unDict)), unMappedCount)
+            new_name = read.query_name + '_2'
+        if new_name not in used_arr:
+            used_arr.append(new_name)
+            if new_name in un_dict:
+                un_mapped_count += 1
+    mapped_file.close()
+    return (float(float(un_mapped_count) / len(un_dict)), un_mapped_count)
 
 
-def writeFailedReconstructions(outF, chain, writtenArr, output, idNameDict, fastaDict):
-    recF = output + '.reconstructed.junctions.' + chain + '.fa'
-    if os.path.isfile(recF):
-        f = open(recF, 'rU')
-        segDict = dict()
-        for tcrRecord in SeqIO.parse(f, 'fasta'):
-            tcrSeq = str(tcrRecord.seq)
-            if tcrSeq.find('NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN') != -1:
+def write_failed_reconstructions(out_f, chain, written_arr, output, id_name_dict, fasta_dict):
+    rec_f = output + '.reconstructed.junctions.' + chain + '.fa'
+    if os.path.isfile(rec_f):
+        f = open(rec_f, 'rU')
+        seg_dict = dict()
+        for tcr_record in SeqIO.parse(f, 'fasta'):
+            tcr_seq = str(tcr_record.seq)
+            if tcr_seq.find('NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN') != -1:
                 status = 'Failed reconstruction - reached maximum number of iterations'
-                segDict = addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaDict)
-            elif tcrSeq.find('NNNN') != -1:
+                seg_dict = add_segments_to_dict(seg_dict, status, written_arr, tcr_record, id_name_dict, fasta_dict)
+            elif tcr_seq.find('NNNN') != -1:
                 status = 'Failed reconstruction - V and J segment do not overlap'
-                segDict = addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaDict)
+                seg_dict = add_segments_to_dict(seg_dict, status, written_arr, tcr_record, id_name_dict, fasta_dict)
         f.close()
-        if len(segDict) > 0:
-            writeSegDict(segDict, outF, chain)
+        if len(seg_dict) > 0:
+            write_seg_dict(seg_dict, out_f, chain)
 
 
-def addSegmentsToDict(segDict, status, writtenArr, tcrRecord, idNameDict, fastaDict):
-    head = tcrRecord.id
-    headArr = head.split('.')
-    vId = headArr[0]
-    jId = headArr[1].split('(')[0]
-    currSeqArr = tcrRecord.seq.split('N')
-    vSeq = currSeqArr[0]
-    jSeq = currSeqArr[-1]
-    minLen = min(len(fastaDict[vId]), len(fastaDict[jId]))
-    tupArr = [(vId, vSeq), (jId, jSeq)]
-    for i in range(0, len(tupArr)):
-        (id, seq) = tupArr[i]
-        if id not in writtenArr:
-            if id in segDict:
+def add_segments_to_dict(seg_dict, status, written_arr, tcr_record, id_name_dict, fasta_dict):
+    head = tcr_record.id
+    head_arr = head.split('.')
+    v_id = head_arr[0]
+    j_id = head_arr[1].split('(')[0]
+    curr_seq_arr = tcr_record.seq.split('N')
+    v_seq = curr_seq_arr[0]
+    j_seq = curr_seq_arr[-1]
+    min_len = min(len(fasta_dict[v_id]), len(fasta_dict[j_id]))
+    tup_arr = [(v_id, v_seq), (j_id, j_seq)]
+    for i in range(0, len(tup_arr)):
+        (id, seq) = tup_arr[i]
+        if id not in written_arr:
+            if id in seg_dict:
                 if i == 0:
-                    if idNameDict[jId] not in segDict[id]['pairs']:
-                        segDict[id]['pairs'].append(idNameDict[jId])
-                    if str(segDict[id]['seq'][-20:]) != str(seq[-20:]):
+                    if id_name_dict[j_id] not in seg_dict[id]['pairs']:
+                        seg_dict[id]['pairs'].append(id_name_dict[j_id])
+                    if str(seg_dict[id]['seq'][-20:]) != str(seq[-20:]):
                         sys.stderr.write(str(
                             datetime.datetime.now()) + ' Error! reconstructed two different sequences from the same '
                                                        'V-segment %s\n' % id)
                         sys.stderr.flush()
                 else:
-                    if idNameDict[vId] not in segDict[id]['pairs']:
-                        segDict[id]['pairs'].append(idNameDict[vId])
-                    if str(segDict[id]['seq'][:20]) != str(seq[:20]):
+                    if id_name_dict[v_id] not in seg_dict[id]['pairs']:
+                        seg_dict[id]['pairs'].append(id_name_dict[v_id])
+                    if str(seg_dict[id]['seq'][:20]) != str(seq[:20]):
                         sys.stderr.write(str(
                             datetime.datetime.now()) + ' Error! reconstructed two different sequences from the same '
                                                        'J-segment %s\n' % id)
                         sys.stderr.flush()
             else:
-                segDict[id] = dict()
-                segDict[id]['status'] = status
-                segDict[id]['seq'] = seq
-                segDict[id]['len'] = len(seq) - minLen
-                segDict[id]['pairs'] = []
+                seg_dict[id] = dict()
+                seg_dict[id]['status'] = status
+                seg_dict[id]['seq'] = seq
+                seg_dict[id]['len'] = len(seq) - min_len
+                seg_dict[id]['pairs'] = []
 
                 if i == 0:
-                    segDict[id]['type'] = 'V'
-                    segDict[id]['pairs'].append(idNameDict[jId])
+                    seg_dict[id]['type'] = 'V'
+                    seg_dict[id]['pairs'].append(id_name_dict[j_id])
                 else:
-                    segDict[id]['type'] = 'J'
-                    segDict[id]['pairs'].append(idNameDict[vId])
-                segDict[id]['name'] = idNameDict[id]
+                    seg_dict[id]['type'] = 'J'
+                    seg_dict[id]['pairs'].append(id_name_dict[v_id])
+                seg_dict[id]['name'] = id_name_dict[id]
 
-    return segDict
+    return seg_dict
 
 
-def writeSegDict(segDict, outF, chain):
-    for seg in segDict:
-        currDict = segDict[seg]
+def write_seg_dict(seg_dict, out_f, chain):
+    for seg in seg_dict:
+        curr_dict = seg_dict[seg]
         pairs = ''
-        for pair in currDict['pairs']:
+        for pair in curr_dict['pairs']:
             pairs += pair + '.'
         pairs = pairs[:-1]
-        if currDict['len'] > 0:
-            fLine = chain + '\t' + currDict['status'] + '\t'
-            rank = findCurrRank(segDict, seg, currDict['len'])
-            fLine += str(rank) + '\t'
-            if currDict['type'] == 'V':
-                fLine += currDict['name'] + '\t' + 'paired with: ' + pairs + '\t'
+        if curr_dict['len'] > 0:
+            f_line = chain + '\t' + curr_dict['status'] + '\t'
+            rank = find_curr_rank(seg_dict, seg, curr_dict['len'])
+            f_line += str(rank) + '\t'
+            if curr_dict['type'] == 'V':
+                f_line += curr_dict['name'] + '\t' + 'paired with: ' + pairs + '\t'
             else:
-                fLine += 'paired with: ' + pairs + '\t' + currDict['name'] + '\t'
-            fLine += 'NA\t' + currDict['seq'] + '\tNA\tNA\tNA\t'
-            fLine += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\t'
-            if currDict['type'] == 'V':
-                fLine += seg + '\tNA\tNA\n'
+                f_line += 'paired with: ' + pairs + '\t' + curr_dict['name'] + '\t'
+            f_line += 'NA\t' + curr_dict['seq'] + '\tNA\tNA\tNA\t'
+            f_line += 'NA\tNA\tNA\tNA\tNA\tNA\tNA\t'
+            if curr_dict['type'] == 'V':
+                f_line += seg + '\tNA\tNA\n'
             else:
-                fLine += 'NA\t' + seg + '\tNA\n'
+                f_line += 'NA\t' + seg + '\tNA\n'
                 # print fLine
-            outF.write(str(fLine))
+            out_f.write(str(f_line))
 
 
-def findCurrRank(segDict, seg, currLen):
+def find_curr_rank(seg_dict, seg, curr_len):
     rank = 1
-    for s in segDict:
+    for s in seg_dict:
         if s != seg:
-            if segDict[s]['len'] > currLen:
+            if seg_dict[s]['len'] > curr_len:
                 rank += 1
     return rank
 
 
-def addCellToTCRsum(cellFolder, noutput, opened, tcrFout):
+def add_cell_to_tcr_sum(cell_folder, noutput, opened, tcr_f_out):
     if os.path.isfile(noutput + '.summary.txt'):
-        currOut = open(noutput + '.summary.txt', 'r')
+        curr_out = open(noutput + '.summary.txt', 'r')
         if not opened:
             opened = True
-            head = currOut.readline()
+            head = curr_out.readline()
             head = 'cell\t' + head
-            tcrFout.write(head)
+            tcr_f_out.write(head)
         else:
-            currOut.readline()
-        l = currOut.readline()
+            curr_out.readline()
+        l = curr_out.readline()
         while l != '':
-            newL = cellFolder + '\t' + l
-            tcrFout.write(newL)
-            l = currOut.readline()
-        currOut.close()
+            new_l = cell_folder + '\t' + l
+            tcr_f_out.write(new_l)
+            l = curr_out.readline()
+        curr_out.close()
     return opened
 
 
-def addToStatDict(noutput, cellFolder, finalStatDict):
-    if cellFolder in finalStatDict:
-        print "Error! %s appear more than once in final stat dictionary" % cellFolder
-    finalStatDict[cellFolder] = {'alpha': 'Failed - found V and J segments but wasn\'t able to extend them',
+def add_to_stat_dict(noutput, cell_folder, final_stat_dict):
+    if cell_folder in final_stat_dict:
+        print "Error! %s appear more than once in final stat dictionary" % cell_folder
+    final_stat_dict[cell_folder] = {'alpha': 'Failed - found V and J segments but wasn\'t able to extend them',
                                  'beta': 'Failed - found V and J segments but wasn\'t able to extend them'}
     if os.path.isfile(noutput + '.summary.txt'):
-        currOut = open(noutput + '.summary.txt', 'r')
-        msgA = 'None'
-        msgB = 'None'
-        currOut.readline()
-        l = currOut.readline()
+        curr_out = open(noutput + '.summary.txt', 'r')
+        msg_a = 'None'
+        msg_b = 'None'
+        curr_out.readline()
+        l = curr_out.readline()
         while l != '':
-            lArr = l.strip('\n').split('\t')
-            chain = lArr[0]
-            stat = lArr[1]
+            l_arr = l.strip('\n').split('\t')
+            chain = l_arr[0]
+            stat = l_arr[1]
             if stat == 'Productive':
                 if chain == 'alpha':
-                    msgA = 'Productive'
+                    msg_a = 'Productive'
                 else:
-                    msgB = 'Productive'
+                    msg_b = 'Productive'
             elif stat == 'Productive (no 118 PHE found)':
                 if chain == 'alpha':
-                    msgA = 'Productive (no 118 PHE found)'
+                    msg_a = 'Productive (no 118 PHE found)'
                 else:
-                    msgB = 'Productive (no 118 PHE found)'
+                    msg_b = 'Productive (no 118 PHE found)'
             elif stat.startswith('Unproductive'):
                 if chain == 'alpha':
-                    if msgA != 'Productive':
-                        msgA = 'Unproductive'
+                    if msg_a != 'Productive':
+                        msg_a = 'Unproductive'
                 else:
-                    if msgB != 'Productive':
-                        msgB = 'Unproductive'
+                    if msg_b != 'Productive':
+                        msg_b = 'Unproductive'
             elif stat.startswith('Failed reconstruction'):
                 if stat == 'Failed reconstruction - reached maximum number of iterations':
                     if chain == 'alpha':
-                        if msgA == 'None':
-                            msgA = 'Failed - reconstruction didn\'t converge'
+                        if msg_a == 'None':
+                            msg_a = 'Failed - reconstruction didn\'t converge'
                     else:
-                        if msgB == 'None':
-                            msgB = 'Failed - reconstruction didn\'t converge'
+                        if msg_b == 'None':
+                            msg_b = 'Failed - reconstruction didn\'t converge'
                 elif stat == 'Failed reconstruction - V and J segment do not overlap':
                     if chain == 'alpha':
-                        if msgA == 'None':
-                            msgA = 'Failed - V and J reconstruction don\'t overlap'
+                        if msg_a == 'None':
+                            msg_a = 'Failed - V and J reconstruction don\'t overlap'
                     else:
-                        if msgB == 'None':
-                            msgB = 'Failed - V and J reconstruction don\'t overlap'
-            l = currOut.readline()
-        currOut.close()
-        if msgA == 'None':
-            alphaJunc = noutput + '.alpha.junctions.txt'
-            if (os.path.isfile(alphaJunc) == True):
-                if os.stat(alphaJunc).st_size == 0:
-                    msgA = 'Failed - didn\'t find any V and J segments in original mapping'
+                        if msg_b == 'None':
+                            msg_b = 'Failed - V and J reconstruction don\'t overlap'
+            l = curr_out.readline()
+        curr_out.close()
+        if msg_a == 'None':
+            alpha_junc = noutput + '.alpha.junctions.txt'
+            if (os.path.isfile(alpha_junc) == True):
+                if os.stat(alpha_junc).st_size == 0:
+                    msg_a = 'Failed - didn\'t find any V and J segments in original mapping'
                 else:
-                    msgA = 'Failed - found V and J segments but wasn\'t able to extend them'
+                    msg_a = 'Failed - found V and J segments but wasn\'t able to extend them'
             else:
-                msgA = 'Failed - didn\'t find any V and J segments in original mapping'
-        if msgB == 'None':
-            betaJunc = noutput + '.beta.junctions.txt'
-            if (os.path.isfile(betaJunc) == True):
-                if os.stat(betaJunc).st_size == 0:
-                    msgB = 'Failed - didn\'t find any V and J segments in original mapping'
+                msg_a = 'Failed - didn\'t find any V and J segments in original mapping'
+        if msg_b == 'None':
+            beta_junc = noutput + '.beta.junctions.txt'
+            if (os.path.isfile(beta_junc) == True):
+                if os.stat(beta_junc).st_size == 0:
+                    msg_b = 'Failed - didn\'t find any V and J segments in original mapping'
                 else:
-                    msgB = 'Failed - found V and J segments but wasn\'t able to extend them'
+                    msg_b = 'Failed - found V and J segments but wasn\'t able to extend them'
             else:
-                msgB = 'Failed - didn\'t find any V and J segments in original mapping'
+                msg_b = 'Failed - didn\'t find any V and J segments in original mapping'
 
     else:
-        betaJunc = noutput + '.beta.junctions.txt'
-        alphaJunc = noutput + '.alpha.junctions.txt'
-        if os.path.isfile(betaJunc) == True:
-            if os.stat(betaJunc).st_size == 0:
-                msgB = 'Failed - didn\'t find any V and J segments in original mapping'
+        beta_junc = noutput + '.beta.junctions.txt'
+        alpha_junc = noutput + '.alpha.junctions.txt'
+        if os.path.isfile(beta_junc) == True:
+            if os.stat(beta_junc).st_size == 0:
+                msg_b = 'Failed - didn\'t find any V and J segments in original mapping'
         else:
-            msgB = 'Failed - didn\'t find any V and J segments in original mapping'
-        if (os.path.isfile(alphaJunc) == True):
-            if os.stat(alphaJunc).st_size == 0:
-                msgA = 'Failed - didn\'t find any V and J segments in original mapping'
+            msg_b = 'Failed - didn\'t find any V and J segments in original mapping'
+        if (os.path.isfile(alpha_junc) == True):
+            if os.stat(alpha_junc).st_size == 0:
+                msg_a = 'Failed - didn\'t find any V and J segments in original mapping'
         else:
-            msgA = 'Failed - didn\'t find any V and J segments in original mapping'
-    finalStatDict[cellFolder]['alpha'] = msgA
-    finalStatDict[cellFolder]['beta'] = msgB
-    return finalStatDict
+            msg_a = 'Failed - didn\'t find any V and J segments in original mapping'
+    final_stat_dict[cell_folder]['alpha'] = msg_a
+    final_stat_dict[cell_folder]['beta'] = msg_b
+    return final_stat_dict

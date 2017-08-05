@@ -14,11 +14,11 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
 
-def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, output, fastaDict, bases):
-    mappedReadsDictAlpha = dict()
-    mappedReadsDictBeta = dict()
-    lenArr = [999, 50, 25]
-    for currLen in lenArr:
+def analyze_chain_single_end(fastq, trimmomatic, trans_ind, bowtie2, id_name_dict, output, fasta_dict, bases):
+    mapped_reads_dict_alpha = dict()
+    mapped_reads_dict_beta = dict()
+    len_arr = [999, 50, 25]
+    for currLen in len_arr:
         if currLen == 999:
             steps = ['none']
         else:
@@ -31,137 +31,137 @@ def analyzeChainSingleEnd(fastq, trimmomatic, transInd, bowtie2, idNameDict, out
             else:
                 crop = ''
                 # TODO: make sure we delete those files
-            trimFq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
+            trim_fq = fastq + '.' + str(currLen) + '.' + str(side) + '.trimmed.fq'
             # TODO: use bowtie trimmer instead
             # TODO: make sure about minus strand alignment
             if crop == '':
                 subprocess.call(
-                    ['java', '-jar', trimmomatic, 'SE', '-phred33', fastq, trimFq, 'LEADING:15', 'TRAILING:15',
+                    ['java', '-jar', trimmomatic, 'SE', '-phred33', fastq, trim_fq, 'LEADING:15', 'TRAILING:15',
                      'MINLEN:20'])
             else:
                 subprocess.call(
-                    ['java', '-jar', trimmomatic, 'SE', '-phred33', fastq, trimFq, 'LEADING:15', 'TRAILING:15', crop,
+                    ['java', '-jar', trimmomatic, 'SE', '-phred33', fastq, trim_fq, 'LEADING:15', 'TRAILING:15', crop,
                      'MINLEN:20'])
-            samF = trimFq + '.sam'
+            sam_f = trim_fq + '.sam'
             if bowtie2 != '':
                 if bowtie2.endswith('/'):
-                    bowtieCall = bowtie2 + 'bowtie2'
+                    bowtie_call = bowtie2 + 'bowtie2'
                 else:
-                    bowtieCall = bowtie2 + '/bowtie2'
+                    bowtie_call = bowtie2 + '/bowtie2'
             else:
-                bowtieCall = 'bowtie2'
-            subprocess.call([bowtieCall, '-q --phred33  --score-min L,0,0', '-x', transInd, '-U', trimFq, '-S', samF])
-            if os.path.isfile(samF):
-                mappedReadsDictAlpha = findReadsAndSegments(samF, mappedReadsDictAlpha, idNameDict, 'A')
-                mappedReadsDictBeta = findReadsAndSegments(samF, mappedReadsDictBeta, idNameDict, 'B')
-    alphaOut = output + '.alpha.junctions.txt'
-    alphaOutReads = output + '.alpha.mapped.and.unmapped.fa'
-    betaOutReads = output + '.beta.mapped.and.unmapped.fa'
-    betaOut = output + '.beta.junctions.txt'
-    writeJunctionFileSE(mappedReadsDictAlpha, idNameDict, alphaOut, fastaDict, bases, 'alpha')
-    writeJunctionFileSE(mappedReadsDictBeta, idNameDict, betaOut, fastaDict, bases, 'beta')
-    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq)
-    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq)
+                bowtie_call = 'bowtie2'
+            subprocess.call([bowtie_call, '-q --phred33  --score-min L,0,0', '-x', trans_ind, '-U', trim_fq, '-S', sam_f])
+            if os.path.isfile(sam_f):
+                mapped_reads_dict_alpha = find_reads_and_segments(sam_f, mapped_reads_dict_alpha, id_name_dict, 'A')
+                mapped_reads_dict_beta = find_reads_and_segments(sam_f, mapped_reads_dict_beta, id_name_dict, 'B')
+    alpha_out = output + '.alpha.junctions.txt'
+    alpha_out_reads = output + '.alpha.mapped.and.unmapped.fa'
+    beta_out_reads = output + '.beta.mapped.and.unmapped.fa'
+    beta_out = output + '.beta.junctions.txt'
+    write_junction_file_se(mapped_reads_dict_alpha, id_name_dict, alpha_out, fasta_dict, bases, 'alpha')
+    write_junction_file_se(mapped_reads_dict_beta, id_name_dict, beta_out, fasta_dict, bases, 'beta')
+    write_reads_file_se(mapped_reads_dict_alpha, alpha_out_reads, fastq)
+    write_reads_file_se(mapped_reads_dict_beta, beta_out_reads, fastq)
     sys.exit(1)
 
 
-def findReadsAndSegments(samF, mappedReadsDict, idNameDict, chain):
-    samFile = pysam.AlignmentFile(samF, 'r')
-    readsIter = samFile.fetch(until_eof=True)
-    for read in readsIter:
+def find_reads_and_segments(sam_f, mapped_reads_dict, id_name_dict, chain):
+    sam_file = pysam.AlignmentFile(sam_f, 'r')
+    reads_iter = sam_file.fetch(until_eof=True)
+    for read in reads_iter:
         if read.is_unmapped == False:
-            seg = samFile.getrname(read.reference_id)
-            if seg in idNameDict:
-                if idNameDict[seg].find(chain) != -1:
-                    readName = read.query_name
-                    if readName not in mappedReadsDict:
-                        mappedReadsDict[readName] = []
-                    if seg not in mappedReadsDict[readName]:
-                        mappedReadsDict[readName].append(seg)
-    samFile.close()
-    return mappedReadsDict
+            seg = sam_file.getrname(read.reference_id)
+            if seg in id_name_dict:
+                if id_name_dict[seg].find(chain) != -1:
+                    read_name = read.query_name
+                    if read_name not in mapped_reads_dict:
+                        mapped_reads_dict[read_name] = []
+                    if seg not in mapped_reads_dict[read_name]:
+                        mapped_reads_dict[read_name].append(seg)
+    sam_file.close()
+    return mapped_reads_dict
 
 
-def writeReadsFileSE(mappedReadsDict, outReads, fastq):
+def write_reads_file_se(mapped_reads_dict, out_reads, fastq):
     if fastq.endswith('.gz'):
         subprocess.call(['gunzip', fastq])
-        newFq = fastq.replace('.gz', '')
+        new_fq = fastq.replace('.gz', '')
     else:
-        newFq = fastq
-    out = open(outReads, 'w')
-    fqF = open(newFq, 'rU')
+        new_fq = fastq
+    out = open(out_reads, 'w')
+    fqF = open(new_fq, 'rU')
     for record in SeqIO.parse(fqF, 'fastq'):
-        if record.id in mappedReadsDict:
-            newRec = SeqRecord(record.seq, id=record.id, description='')
-            SeqIO.write(newRec, out, 'fasta')
+        if record.id in mapped_reads_dict:
+            new_rec = SeqRecord(record.seq, id=record.id, description='')
+            SeqIO.write(new_rec, out, 'fasta')
     out.close()
     fqF.close()
     if fastq.endswith('.gz'):
-        subprocess.call(['gzip', newFq])
+        subprocess.call(['gzip', new_fq])
 
 
-def writeJunctionFileSE(mappedReadsDict, idNameDict, output, fastaDict, bases, chain):
+def write_junction_file_se(mapped_reads_dict, id_name_dict, output, fasta_dict, bases, chain):
     out = open(output, 'w')
-    vSegs = []
-    jSegs = []
-    cSegs = []
-    for read in mappedReadsDict:
-        for seg in mappedReadsDict[read]:
-            if idNameDict[seg].find('V') != -1:
-                if seg not in vSegs:
-                    vSegs.append(seg)
-            elif idNameDict[seg].find('J') != -1:
-                if seg not in jSegs:
-                    jSegs.append(seg)
-            elif idNameDict[seg].find('C') != -1:
-                if seg not in cSegs:
-                    cSegs.append(seg)
+    v_segs = []
+    j_segs = []
+    c_segs = []
+    for read in mapped_reads_dict:
+        for seg in mapped_reads_dict[read]:
+            if id_name_dict[seg].find('V') != -1:
+                if seg not in v_segs:
+                    v_segs.append(seg)
+            elif id_name_dict[seg].find('J') != -1:
+                if seg not in j_segs:
+                    j_segs.append(seg)
+            elif id_name_dict[seg].find('C') != -1:
+                if seg not in c_segs:
+                    c_segs.append(seg)
             else:
                 print "Error! not V/J/C in fasta dict"
-    if len(vSegs) == 0:
+    if len(v_segs) == 0:
         print "Did not find any V segments for " + chain + " chain"
     else:
-        if len(cSegs) == 0:
+        if len(c_segs) == 0:
             print "Did not find any C segments for " + chain + " chain"
-            cSegs = ['NA']
-        if len(jSegs) == 0:
+            c_segs = ['NA']
+        if len(j_segs) == 0:
             print "Did not find any J segments for " + chain + " chain"
-            jSegs = ['NA']
-        for vSeg in vSegs:
-            for jSeg in jSegs:
-                for cSeg in cSegs:
-                    addSegmentToJunctionFileSE(vSeg, jSeg, cSeg, out, fastaDict, bases, idNameDict)
+            j_segs = ['NA']
+        for v_seg in v_segs:
+            for j_seg in j_segs:
+                for c_seg in c_segs:
+                    add_segment_to_junction_file_se(v_seg, j_seg, c_seg, out, fasta_dict, bases, id_name_dict)
     out.close()
 
 
-def addSegmentToJunctionFileSE(vSeg, jSeg, cSeg, out, fastaDict, bases, idNameDict):
-    vSeq = fastaDict[vSeg]
-    if jSeg != 'NA':
-        jName = idNameDict[jSeg]
-        jSeq = fastaDict[jSeg]
+def add_segment_to_junction_file_se(v_seg, j_seg, c_seg, out, fasta_dict, bases, id_name_dict):
+    v_seq = fasta_dict[v_seg]
+    if j_seg != 'NA':
+        j_name = id_name_dict[j_seg]
+        j_seq = fasta_dict[j_seg]
     else:
-        jSeq = ''
-        jName = 'NoJ'
-    if cSeg != 'NA':
-        cName = idNameDict[cSeg]
-        cSeq = fastaDict[cSeg]
+        j_seq = ''
+        j_name = 'NoJ'
+    if c_seg != 'NA':
+        c_name = id_name_dict[c_seg]
+        c_seq = fasta_dict[c_seg]
     else:
-        cName = 'NoC'
-        cSeq = ''
-    jcSeq = jSeq + cSeq
-    lenSeg = min(len(vSeq), len(jcSeq))
+        c_name = 'NoC'
+        c_seq = ''
+    jc_seq = j_seq + c_seq
+    len_seg = min(len(v_seq), len(jc_seq))
     if bases != -10:
-        if lenSeg < bases:
+        if len_seg < bases:
             sys.stdout.write(str(
                 datetime.datetime.now()) + ' Bases parameter is bigger than the length of the V or J segment, '
                                            'taking the length'
-                                           'of the V/J segment instead, which is: ' + str(lenSeg) + '\n')
+                                           'of the V/J segment instead, which is: ' + str(len_seg) + '\n')
             sys.stdout.flush()
         else:
-            lenSeg = bases
-    jTrim = jcSeq[:lenSeg]
-    vTrim = vSeq[-1 * lenSeg:]
-    junc = vTrim + jTrim
-    recordName = vSeg + '.' + jSeg + '.' + cSeg + '(' + idNameDict[vSeg] + '-' + jName + '-' + cName + ')'
-    record = SeqRecord(Seq(junc, IUPAC.ambiguous_dna), id=recordName, description='')
+            len_seg = bases
+    j_trim = jc_seq[:len_seg]
+    v_trim = v_seq[-1 * len_seg:]
+    junc = v_trim + j_trim
+    record_name = v_seg + '.' + j_seg + '.' + c_seg + '(' + id_name_dict[v_seg] + '-' + j_name + '-' + c_name + ')'
+    record = SeqRecord(Seq(junc, IUPAC.ambiguous_dna), id=record_name, description='')
     SeqIO.write(record, out, 'fasta')
