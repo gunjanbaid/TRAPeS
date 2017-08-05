@@ -7,8 +7,8 @@ summary statistics for all cells.
 import os
 
 
-def makeSingleCellOutputFile(alphaDict, betaDict, output, betaRsem, alphaRsem, alphaBam, betaBam, fastaDict,
-                             unDictAlpha, unDictBeta, idNameDict):
+def make_single_cell_output_file(alphaDict, betaDict, output, betaRsem, alphaRsem, alphaBam, betaBam, fastaDict,
+                                 unDictAlpha, unDictBeta, idNameDict):
     outF = open(output + '.summary.txt', 'w')
     outF.write(
         'Chain\tStatus\tRank of TCR\tV\tJ\tC\tCDR3 NT\tCDR3 AA\t#reads in TCR\t#reads in CDR3\t#reads in V\t#reads in '

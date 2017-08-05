@@ -13,7 +13,7 @@ import datetime
 
 from utils import formatFiles
 from write_output_files import addCellToTCRsum, addToStatDict
-from process_single_cell import runSingleCell
+from process_single_cell import run_single_cell
 
 
 def checkParameters(genome, strand, singleCell, path, sumF):
@@ -83,9 +83,9 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations, thre
                     mapping = currFolder + 'data/hg19/hg19.gene.id.mapping.TCR.txt'
                     aaF = currFolder + 'data/hg19/hg19.conserved.AA.txt'
 
-                runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF,
-                              numIterations, thresholdScore,
-                              minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide)
+                run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF,
+                                numIterations, thresholdScore,
+                                minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide)
                 opened = addCellToTCRsum(cellFolder, noutput, opened, tcrFout)
                 finalStatDict = addToStatDict(noutput, cellFolder, finalStatDict)
     sumFout = open(sumF + '.summary.txt', 'w')

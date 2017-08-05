@@ -13,621 +13,621 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
 from paired_end import analyze_chain, run_rsem
-from write_output_files import makeSingleCellOutputFile
+from write_output_files import make_single_cell_output_file
 from utils import get_c_info
 
-def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF, numIterations,
-                  thresholdScore, minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide):
-    idNameDict = makeIdNameDict(mapping)
-    fastaDict = makeFastaDict(fasta)
-    vdjDict = makeVDJBedDict(bed, idNameDict)
+def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aa_f, num_iterations,
+                    threshold_score, min_overlap, rsem, bowtie2, low_q, samtools, top, by_exp, read_overlap, one_side):
+    id_name_dict = make_id_name_dict(mapping)
+    fasta_dict = make_fasta_dict(fasta)
+    vdj_dict = make_vdj_bed_dict(bed, id_name_dict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    unDictAlpha = analyze_chain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'A', strand, lowQ, top,
-                                byExp, readOverlap)
+    un_dict_alpha = analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A', strand, low_q, top,
+                                by_exp, read_overlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
     sys.stdout.flush()
-    unDictBeta = analyze_chain(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, 'B', strand, lowQ, top,
-                               byExp, readOverlap)
+    un_dict_beta = analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B', strand, low_q, top,
+                               by_exp, read_overlap)
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt',
-                     output + '.reconstructed.junctions.beta.fa', str(numIterations), str(thresholdScore),
-                     str(minOverlap)])
+                     output + '.reconstructed.junctions.beta.fa', str(num_iterations), str(threshold_score),
+                     str(min_overlap)])
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
     sys.stdout.flush()
     subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
-                     output + '.reconstructed.junctions.alpha.fa', str(numIterations), str(thresholdScore),
-                     str(minOverlap)])
+                     output + '.reconstructed.junctions.alpha.fa', str(num_iterations), str(threshold_score),
+                     str(min_overlap)])
     sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
     sys.stdout.flush()
-    fullTcrFileAlpha = output + '.alpha.full.TCRs.fa'
-    tcrF = output + '.reconstructed.junctions.alpha.fa'
-    (cSeq, cName, cId) = get_c_info(vdjDict['Alpha']['C'][0], idNameDict, fastaDict)
-    createTCRFullOutput(fastaDict, tcrF, fullTcrFileAlpha, bases, idNameDict, cSeq, cName, cId, oneSide)
-    fullTcrFileBeta = output + '.beta.full.TCRs.fa'
-    tcrF = output + '.reconstructed.junctions.beta.fa'
-    (cSeq, cName, cId) = get_c_info(vdjDict['Beta']['C'][0], idNameDict, fastaDict)
-    createTCRFullOutput(fastaDict, tcrF, fullTcrFileBeta, bases, idNameDict, cSeq, cName, cId, oneSide)
+    full_tcr_file_alpha = output + '.alpha.full.TCRs.fa'
+    tcr_f = output + '.reconstructed.junctions.alpha.fa'
+    (c_seq, c_name, c_id) = get_c_info(vdj_dict['Alpha']['C'][0], id_name_dict, fasta_dict)
+    create_tcr_full_output(fasta_dict, tcr_f, full_tcr_file_alpha, bases, id_name_dict, c_seq, c_name, c_id, one_side)
+    full_tcr_file_beta = output + '.beta.full.TCRs.fa'
+    tcr_f = output + '.reconstructed.junctions.beta.fa'
+    (c_seq, c_name, c_id) = get_c_info(vdj_dict['Beta']['C'][0], id_name_dict, fasta_dict)
+    create_tcr_full_output(fasta_dict, tcr_f, full_tcr_file_beta, bases, id_name_dict, c_seq, c_name, c_id, one_side)
     sys.stdout.write(str(datetime.datetime.now()) + " Running RSEM to quantify expression of all possible isoforms\n")
     sys.stdout.flush()
-    outDirInd = output.rfind('/')
-    if outDirInd != -1:
-        outDir = output[:outDirInd + 1]
+    out_dir_ind = output.rfind('/')
+    if out_dir_ind != -1:
+        out_dir = output[:out_dir_ind + 1]
     else:
-        outDir = os.getcwd()
-    run_rsem(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
-    pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output)
-    bestAlpha = output + '.alpha.full.TCRs.bestIso.fa'
-    bestBeta = output + '.beta.full.TCRs.bestIso.fa'
+        out_dir = os.getcwd()
+    run_rsem(out_dir, rsem, bowtie2, full_tcr_file_alpha, full_tcr_file_beta, output, samtools)
+    pick_final_isoforms(full_tcr_file_alpha, full_tcr_file_beta, output)
+    best_alpha = output + '.alpha.full.TCRs.bestIso.fa'
+    best_beta = output + '.beta.full.TCRs.bestIso.fa'
     sys.stdout.write(str(datetime.datetime.now()) + " Finding productive CDR3\n")
     sys.stdout.flush()
-    aaDict = makeAADict(aaF)
-    if os.path.isfile(bestAlpha):
-        fDictAlpha = findCDR3(bestAlpha, aaDict, fastaDict)
+    aa_dict = make_aa_dict(aa_f)
+    if os.path.isfile(best_alpha):
+        f_dict_alpha = find_cdr3(best_alpha, aa_dict, fasta_dict)
     else:
-        fDictAlpha = dict()
-    if os.path.isfile(bestBeta):
-        fDictBeta = findCDR3(bestBeta, aaDict, fastaDict)
+        f_dict_alpha = dict()
+    if os.path.isfile(best_beta):
+        f_dict_beta = find_cdr3(best_beta, aa_dict, fasta_dict)
     else:
-        fDictBeta = dict()
-    betaRsemOut = output + '.beta.rsem.out.genes.results'
-    alphaRsemOut = output + '.alpha.rsem.out.genes.results'
-    alphaBam = output + '.alpha.rsem.out.transcript.sorted.bam'
-    betaBam = output + '.beta.rsem.out.transcript.sorted.bam'
+        f_dict_beta = dict()
+    beta_rsem_out = output + '.beta.rsem.out.genes.results'
+    alpha_rsem_out = output + '.alpha.rsem.out.genes.results'
+    alpha_bam = output + '.alpha.rsem.out.transcript.sorted.bam'
+    beta_bam = output + '.beta.rsem.out.transcript.sorted.bam'
     sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
     sys.stdout.flush()
-    makeSingleCellOutputFile(fDictAlpha, fDictBeta, output, betaRsemOut, alphaRsemOut, alphaBam, betaBam, fastaDict,
-                             unDictAlpha, unDictBeta, idNameDict)
+    make_single_cell_output_file(f_dict_alpha, f_dict_beta, output, beta_rsem_out, alpha_rsem_out, alpha_bam, beta_bam, fasta_dict,
+                                 un_dict_alpha, un_dict_beta, id_name_dict)
 
 
 # Creates a dictionary of ENSEMBL ID -> Gene name
-def makeIdNameDict(mapping):
+def make_id_name_dict(mapping):
     f = open(mapping, 'r')
-    fDict = dict()
-    linesArr = f.read().split('\n')
+    f_dict = dict()
+    lines_arr = f.read().split('\n')
     f.close()
-    for line in linesArr:
-        lineArr = line.split('\t')
-        id = lineArr[0]
-        name = lineArr[1]
+    for line in lines_arr:
+        line_arr = line.split('\t')
+        id = line_arr[0]
+        name = line_arr[1]
         ind = name.find('Gene:')
         if ind != -1:
             name = name[ind + len('Gene:'):]
-        if id in fDict:
+        if id in f_dict:
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! %s appear twice in mapping file\n' % id)
             sys.stderr.flush()
-        fDict[id] = name
-    return fDict
+        f_dict[id] = name
+    return f_dict
 
 
 # Creates a dictionary of ENSEMBL ID -> fasta sequence
-def makeFastaDict(fasta):
+def make_fasta_dict(fasta):
     inF = open(fasta, 'rU')
-    fastaDict = dict()
+    fasta_dict = dict()
     for record in SeqIO.parse(inF, 'fasta'):
-        fastaDict[record.id] = str(record.seq)
+        fasta_dict[record.id] = str(record.seq)
     inF.close()
-    return fastaDict
+    return fasta_dict
 
 
 # Create a dict {'Alpha':{'C':[bed],'V':[bed],'J':[bed]}, 'Beta':{'C':[],'V':[],'J':[]}}
-def makeVDJBedDict(bed, idNameDict):
-    fDict = {'Alpha': {'C': [], 'V': [], 'J': []}, 'Beta': {'C': [], 'V': [], 'J': []}}
+def make_vdj_bed_dict(bed, id_name_dict):
+    f_dict = {'Alpha': {'C': [], 'V': [], 'J': []}, 'Beta': {'C': [], 'V': [], 'J': []}}
     f = open(bed, 'r')
     l = f.readline()
     while l != '':
-        lArr = l.strip('\n').split('\t')
-        gID = lArr[3]
-        gName = idNameDict[gID]
+        l_arr = l.strip('\n').split('\t')
+        g_id = l_arr[3]
+        g_name = id_name_dict[g_id]
         chain = ''
-        if (gName.startswith('TRA')):
+        if (g_name.startswith('TRA')):
             chain = 'Alpha'
-        elif (gName.startswith('TRB')):
+        elif (g_name.startswith('TRB')):
             chain = 'Beta'
         else:
             sys.stderr.write(
-                str(datetime.datetime.now()) + ' Error! %s name is not alpha or beta chain, ignoring it\n' % gName)
+                str(datetime.datetime.now()) + ' Error! %s name is not alpha or beta chain, ignoring it\n' % g_name)
             sys.stderr.flush()
-        if gName.find('C') != -1:
-            fDict[chain]['C'].append(l)
-        elif gName.find('V') != -1:
-            fDict[chain]['V'].append(l)
-        elif gName.find('J') != -1:
-            fDict[chain]['J'].append(l)
+        if g_name.find('C') != -1:
+            f_dict[chain]['C'].append(l)
+        elif g_name.find('V') != -1:
+            f_dict[chain]['V'].append(l)
+        elif g_name.find('J') != -1:
+            f_dict[chain]['J'].append(l)
         l = f.readline()
     f.close()
-    return fDict
+    return f_dict
 
 
-def makeAADict(aaF):
-    fDict = dict()
-    f = open(aaF, 'r')
+def make_aa_dict(aa_f):
+    f_dict = dict()
+    f = open(aa_f, 'r')
     l = f.readline()
     while l != '':
-        lArr = l.strip('\n').split('\t')
-        if lArr[0] in fDict:
-            sys.stderr.write(str(datetime.datetime.now()) + ' Warning! %s appear twice in AA file\n' % lArr[0])
+        l_arr = l.strip('\n').split('\t')
+        if l_arr[0] in f_dict:
+            sys.stderr.write(str(datetime.datetime.now()) + ' Warning! %s appear twice in AA file\n' % l_arr[0])
             sys.stderr.flush()
-        fDict[lArr[0]] = lArr[1]
+        f_dict[l_arr[0]] = l_arr[1]
         l = f.readline()
     f.close()
-    return fDict
+    return f_dict
 
-def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cId, oneSide):
-    tcrF = open(tcr, 'rU')
+def create_tcr_full_output(fasta_dict, tcr, out_name, bases, map_dict, c_seq, c_name, c_id, one_side):
+    tcr_f = open(tcr, 'rU')
     found = False
-    ffound = False
-    recNameArr = []
-    for tcrRecord in SeqIO.parse(tcrF, 'fasta'):
-        addedC = False
-        tcrSeq = str(tcrRecord.seq)
-        if tcrSeq.find('NNNNN') == -1:
-            if ffound == False:
-                ffound = True
-                outF = open(outName, 'w')
-            idArr = tcrRecord.id.split('.')
-            vEns = idArr[0]
-            jEns = idArr[1].split('(')[0]
-            vSeq = fastaDict[vEns]
-            jSeq = fastaDict[jEns]
-            recNameArr = writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId,
-                                     cName, outF, fastaDict, recNameArr)
-        elif oneSide:
-            curSeq = tcrSeq.split('NNNN')[0]
-            jSeg = findBestJforSeq(curSeq, fastaDict, mapDict)
-            if jSeg != 'NA':
-                if ffound == False:
-                    ffound = True
-                    outF = open(outName, 'w')
-                idArr = tcrRecord.id.split('.')
-                vEns = idArr[0]
-                vSeq = fastaDict[vEns]
-                for jEns in jSeg:
-                    jSeq = fastaDict[jEns]
-                    recNameArr = writeRecord(tcrRecord, curSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq,
-                                             cId, cName, outF, fastaDict, recNameArr)
-    tcrF.close()
+    f_found = False
+    rec_name_arr = []
+    for tcr_record in SeqIO.parse(tcr_f, 'fasta'):
+        added_c = False
+        tcr_seq = str(tcr_record.seq)
+        if tcr_seq.find('NNNNN') == -1:
+            if f_found == False:
+                f_found = True
+                out_f = open(out_name, 'w')
+            id_arr = tcr_record.id.split('.')
+            v_ens = id_arr[0]
+            j_ens = id_arr[1].split('(')[0]
+            v_seq = fasta_dict[v_ens]
+            j_seq = fasta_dict[j_ens]
+            rec_name_arr = write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq, c_id,
+                                        c_name, out_f, fasta_dict, rec_name_arr)
+        elif one_side:
+            cur_seq = tcr_seq.split('NNNN')[0]
+            j_seg = find_best_j_for_seq(cur_seq, fasta_dict, map_dict)
+            if j_seg != 'NA':
+                if f_found == False:
+                    f_found = True
+                    out_f = open(out_name, 'w')
+                id_arr = tcr_record.id.split('.')
+                v_ens = id_arr[0]
+                v_seq = fasta_dict[v_ens]
+                for j_ens in j_seg:
+                    j_seq = fasta_dict[j_ens]
+                    rec_name_arr = write_record(tcr_record, cur_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq,
+                                                c_id, c_name, out_f, fasta_dict, rec_name_arr)
+    tcr_f.close()
     if found == True:
-        outF.close()
+        out_f.close()
 
 
-def findBestJforSeq(curSeq, fastaDict, idNameDict):
-    jArrOld = findJsPerLen(curSeq, fastaDict, idNameDict, 20)
-    if len(jArrOld) == 0:
+def find_best_j_for_seq(cur_seq, fasta_dict, id_name_dict):
+    j_arr_old = find_js_per_len(cur_seq, fasta_dict, id_name_dict, 20)
+    if len(j_arr_old) == 0:
         return 'NA'
-    for x in range(21, len(curSeq)):
-        newArr = findJsPerLen(curSeq, fastaDict, idNameDict, x)
-        if len(newArr) == 0:
-            return jArrOld
+    for x in range(21, len(cur_seq)):
+        new_arr = find_js_per_len(cur_seq, fasta_dict, id_name_dict, x)
+        if len(new_arr) == 0:
+            return j_arr_old
         else:
-            jArrOld = newArr
+            j_arr_old = new_arr
     print 'Found a full J segment as the V/J junction, ignoring this reconstruction'
     return 'NA'
 
 
-def findJsPerLen(curSeq, fastaDict, idNameDict, trim):
-    fArr = []
-    for seq in fastaDict:
-        if idNameDict[seq].find('J') != -1:
-            jSeq = fastaDict[seq]
-            lenJ = len(jSeq)
-            for i in range(0, lenJ):
-                if ((i + trim) <= lenJ):
-                    trimJ = jSeq[i:i + trim]
-                    if curSeq.find(trimJ) != -1:
-                        if seq not in fArr:
-                            fArr.append(seq)
+def find_js_per_len(cur_seq, fasta_dict, id_name_dict, trim):
+    f_arr = []
+    for seq in fasta_dict:
+        if id_name_dict[seq].find('J') != -1:
+            j_seq = fasta_dict[seq]
+            len_j = len(j_seq)
+            for i in range(0, len_j):
+                if ((i + trim) <= len_j):
+                    trim_j = j_seq[i:i + trim]
+                    if cur_seq.find(trim_j) != -1:
+                        if seq not in f_arr:
+                            f_arr.append(seq)
                             break
-    return fArr
+    return f_arr
 
 
-def writeRecord(tcrRecord, tcrSeq, addedC, vEns, jEns, vSeq, jSeq, mapDict, bases, cSeq, cId, cName, outF, fastaDict,
-                recNameArr):
-    vSeqTrim = ''
-    jSeqTrim = ''
+def write_record(tcr_record, tcr_seq, added_c, v_ens, j_ens, v_seq, j_seq, map_dict, bases, c_seq, c_id, c_name, out_f, fasta_dict,
+                 rec_name_arr):
+    v_seq_trim = ''
+    j_seq_trim = ''
     if bases == -10:
-        bases = min(len(vSeq), len(jSeq))
-    elif bases > len(jSeq):
-        jSeq = jSeq + cSeq
-        addedC = True
+        bases = min(len(v_seq), len(j_seq))
+    elif bases > len(j_seq):
+        j_seq = j_seq + c_seq
+        added_c = True
     found = False
     for i in reversed(range(20, bases)):
-        juncStart = tcrSeq[:i]
-        vInd = vSeq.find(juncStart)
-        if (vInd != -1):
+        junc_start = tcr_seq[:i]
+        v_ind = v_seq.find(junc_start)
+        if (v_ind != -1):
             found = True
-            vSeqTrim = vSeq[:vInd]
+            v_seq_trim = v_seq[:v_ind]
             break
     if found == False:
-        vSeqTrim = vSeq[:-bases]
+        v_seq_trim = v_seq[:-bases]
     found = False
     for j in reversed(range(20, bases)):
-        juncEnd = tcrSeq[-j:]
-        jInd = jSeq.find(juncEnd)
-        if (jInd != -1):
+        junc_end = tcr_seq[-j:]
+        j_ind = j_seq.find(junc_end)
+        if (j_ind != -1):
             found = True
-            jSeqTrim = jSeq[jInd + j:]
+            j_seq_trim = j_seq[j_ind + j:]
             break
     if found == False:
-        jSeqTrim = jSeq[bases:]
+        j_seq_trim = j_seq[bases:]
     # Add TRBC or TRAC
-    cArr = []
-    if (str(tcrRecord.id).find('TRB') != -1):
-        for ens in mapDict:
-            if mapDict[ens].find('TRBC') != -1:
-                cArr.append(ens)
-    elif (str(tcrRecord.id).find('TRA') != -1):
-        for ens in mapDict:
-            if mapDict[ens].find('TRAC') != -1:
-                cArr.append(ens)
+    c_arr = []
+    if (str(tcr_record.id).find('TRB') != -1):
+        for ens in map_dict:
+            if map_dict[ens].find('TRBC') != -1:
+                c_arr.append(ens)
+    elif (str(tcr_record.id).find('TRA') != -1):
+        for ens in map_dict:
+            if map_dict[ens].find('TRAC') != -1:
+                c_arr.append(ens)
     else:
         sys.stderr.write(str(datetime.datetime.now()) + " Error! no TRBC or TRAC\n")
         sys.stderr.flush()
-    if not addedC:
-        for ens in cArr:
-            cSeq = fastaDict[ens]
-            newSeq = vSeqTrim + tcrSeq + jSeqTrim + cSeq
-            newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + mapDict[ens] + '.' + vEns + '.' + jEns + '.' + ens
-            while newId in recNameArr:
-                newId += '_2'
-            recNameArr.append(newId)
-            record = SeqRecord(Seq(newSeq, IUPAC.ambiguous_dna), id=newId, description='')
-            SeqIO.write(record, outF, 'fasta')
+    if not added_c:
+        for ens in c_arr:
+            c_seq = fasta_dict[ens]
+            new_seq = v_seq_trim + tcr_seq + j_seq_trim + c_seq
+            new_id = map_dict[v_ens] + '.' + map_dict[j_ens] + '.' + map_dict[ens] + '.' + v_ens + '.' + j_ens + '.' + ens
+            while new_id in rec_name_arr:
+                new_id += '_2'
+            rec_name_arr.append(new_id)
+            record = SeqRecord(Seq(new_seq, IUPAC.ambiguous_dna), id=new_id, description='')
+            SeqIO.write(record, out_f, 'fasta')
     else:
-        newSeq = vSeqTrim + tcrSeq + jSeqTrim
-        newId = mapDict[vEns] + '.' + mapDict[jEns] + '.' + cName + '.' + vEns + '.' + jEns + '.' + cId
-        while newId in recNameArr:
-            newId += '_2'
-        recNameArr.append(newId)
-        record = SeqRecord(Seq(newSeq, IUPAC.ambiguous_dna), id=newId, description='')
-        SeqIO.write(record, outF, 'fasta')
-    return recNameArr
+        new_seq = v_seq_trim + tcr_seq + j_seq_trim
+        new_id = map_dict[v_ens] + '.' + map_dict[j_ens] + '.' + c_name + '.' + v_ens + '.' + j_ens + '.' + c_id
+        while new_id in rec_name_arr:
+            new_id += '_2'
+        rec_name_arr.append(new_id)
+        record = SeqRecord(Seq(new_seq, IUPAC.ambiguous_dna), id=new_id, description='')
+        SeqIO.write(record, out_f, 'fasta')
+    return rec_name_arr
 
 
-def pickFinalIsoforms(fullTcrFileAlpha, fullTcrFileBeta, output):
-    pickFinalIsoformChain(fullTcrFileAlpha, output + '.alpha.full.TCRs.bestIso.fa',
-                          output + '.alpha.rsem.out.genes.results')
-    pickFinalIsoformChain(fullTcrFileBeta, output + '.beta.full.TCRs.bestIso.fa',
-                          output + '.beta.rsem.out.genes.results')
+def pick_final_isoforms(full_tcr_file_alpha, full_tcr_file_beta, output):
+    pick_final_isoform_chain(full_tcr_file_alpha, output + '.alpha.full.TCRs.bestIso.fa',
+                             output + '.alpha.rsem.out.genes.results')
+    pick_final_isoform_chain(full_tcr_file_beta, output + '.beta.full.TCRs.bestIso.fa',
+                             output + '.beta.rsem.out.genes.results')
 
 
-def pickFinalIsoformChain(fullTCRfa, newFasta, rsemF):
+def pick_final_isoform_chain(fullTCRfa, newFasta, rsemF):
     if os.path.isfile(fullTCRfa):
         f = open(fullTCRfa, 'rU')
-        outFa = open(newFasta, 'w')
-        fastaDict = dict()
-        byVJDict = dict()
+        out_fa = open(newFasta, 'w')
+        fasta_dict = dict()
+        by_vj_dict = dict()
         for record in SeqIO.parse(f, 'fasta'):
-            if record.id in fastaDict:
+            if record.id in fasta_dict:
                 # record.id = record.id + '_2'
                 sys.stderr.write(
                     str(datetime.datetime.now()) + 'error! same name for two fasta entries %s\n' % record.id)
                 sys.stderr.flush()
-            fastaDict[record.id] = record.seq
-            onlyVJrec = str(record.id)
-            idArr = onlyVJrec.strip('\n').split('.')
-            vjStr = idArr[0] + '.' + idArr[1]
-            if vjStr not in byVJDict:
-                byVJDict[vjStr] = []
-            byVJDict[vjStr].append(record.id)
-        for vjStr in byVJDict:
+            fasta_dict[record.id] = record.seq
+            only_vj_rec = str(record.id)
+            id_arr = only_vj_rec.strip('\n').split('.')
+            vj_str = id_arr[0] + '.' + id_arr[1]
+            if vj_str not in by_vj_dict:
+                by_vj_dict[vj_str] = []
+            by_vj_dict[vj_str].append(record.id)
+        for vj_str in by_vj_dict:
 
-            if len(byVJDict[vjStr]) == 1:
-                cId = byVJDict[vjStr][0]
-                cSeq = fastaDict[cId]
-                newRec = SeqRecord(cSeq, id=cId, description='')
-                SeqIO.write(newRec, outFa, 'fasta')
+            if len(by_vj_dict[vj_str]) == 1:
+                c_id = by_vj_dict[vj_str][0]
+                c_seq = fasta_dict[c_id]
+                new_rec = SeqRecord(c_seq, id=c_id, description='')
+                SeqIO.write(new_rec, out_fa, 'fasta')
             else:
                 # print vjStr
                 # print byVJDict[vjStr]
-                bestId = findBestC(byVJDict[vjStr], rsemF)
+                best_id = find_best_c(by_vj_dict[vj_str], rsemF)
                 # print "best: " + bestId
-                bSeq = fastaDict[bestId]
-                newRec = SeqRecord(bSeq, id=bestId, description='')
-                SeqIO.write(newRec, outFa, 'fasta')
-        outFa.close()
+                b_seq = fasta_dict[best_id]
+                new_rec = SeqRecord(b_seq, id=best_id, description='')
+                SeqIO.write(new_rec, out_fa, 'fasta')
+        out_fa.close()
         f.close()
 
 
-def findBestC(vjArr, rsemF):
-    if (os.path.exists(rsemF)):
-        f = open(rsemF, 'r')
+def find_best_c(vj_arr, rsem_f):
+    if (os.path.exists(rsem_f)):
+        f = open(rsem_f, 'r')
         f.readline()
         l = f.readline()
-        bestSeq = 'name'
-        maxCount = 0.0
+        best_seq = 'name'
+        max_count = 0.0
         while l != '':
-            lArr = l.strip('\n').split('\t')
-            if lArr[0] in vjArr:
-                currCount = float(lArr[4])
-                if currCount > maxCount:
-                    bestSeq = lArr[0]
-                    maxCount = currCount
+            l_arr = l.strip('\n').split('\t')
+            if l_arr[0] in vj_arr:
+                curr_count = float(l_arr[4])
+                if curr_count > max_count:
+                    best_seq = l_arr[0]
+                    max_count = curr_count
             l = f.readline()
         f.close()
-        if bestSeq == 'name':
-            return vjArr[0]
-        return bestSeq
+        if best_seq == 'name':
+            return vj_arr[0]
+        return best_seq
     else:
-        return vjArr[0]
+        return vj_arr[0]
 
 
-def findCDR3(fasta, aaDict, vdjFaDict):
+def find_cdr3(fasta, aa_dict, vdj_fa_dict):
     f = open(fasta, 'rU')
-    fDict = dict()
+    f_dict = dict()
     for record in SeqIO.parse(f, 'fasta'):
-        if record.id in fDict:
+        if record.id in f_dict:
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! same name for two fasta entries %s\n' % record.id)
             sys.stderr.flush()
         else:
-            idArr = record.id.split('.')
-            vSeg = idArr[0]
-            jSeg = idArr[1]
-            if ((vSeg in aaDict) & (jSeg in aaDict)):
-                currDict = findVandJaaMap(aaDict[vSeg], aaDict[jSeg], record.seq)
+            id_arr = record.id.split('.')
+            v_seg = id_arr[0]
+            j_seg = id_arr[1]
+            if ((v_seg in aa_dict) & (j_seg in aa_dict)):
+                curr_dict = find_v_and_j_aa_map(aa_dict[v_seg], aa_dict[j_seg], record.seq)
             else:
-                if vSeg in aaDict:
-                    newVseg = aaDict[vSeg]
+                if v_seg in aa_dict:
+                    new_vseg = aa_dict[v_seg]
                 else:
-                    vId = idArr[3]
-                    currSeq = vdjFaDict[vId]
-                    newVseg = getBestVaa(Seq(currSeq))
-                if jSeg in aaDict:
-                    newJseg = aaDict[jSeg]
+                    v_id = id_arr[3]
+                    curr_seq = vdj_fa_dict[v_id]
+                    new_vseg = get_best_v_aa(Seq(curr_seq))
+                if j_seg in aa_dict:
+                    new_jseg = aa_dict[j_seg]
                 else:
-                    jId = idArr[4]
-                    currSeq = vdjFaDict[jId]
-                    newJseg = getBestJaa(Seq(currSeq))
-                currDict = findVandJaaMap(newVseg, newJseg, record.seq)
-            fDict[record.id] = currDict
+                    j_id = id_arr[4]
+                    curr_seq = vdj_fa_dict[j_id]
+                    new_jseg = get_best_j_aa(Seq(curr_seq))
+                curr_dict = find_v_and_j_aa_map(new_vseg, new_jseg, record.seq)
+            f_dict[record.id] = curr_dict
     f.close()
-    return fDict
+    return f_dict
 
 
-def getNTseq(fullSeq):
-    mod = len(fullSeq) % 3
+def get_nt_seq(full_seq):
+    mod = len(full_seq) % 3
     if mod != 0:
-        fSeq = fullSeq[:-mod].translate()
+        f_seq = full_seq[:-mod].translate()
     else:
-        fSeq = fullSeq.translate()
-    return fSeq
+        f_seq = full_seq.translate()
+    return f_seq
 
 
-def findVandJaaMap(vSeg, jSeg, fullSeq):
-    fDict = dict()
-    firstSeq = getNTseq(fullSeq)
-    secondSeq = getNTseq(fullSeq[1:])
-    thirdSeq = getNTseq(fullSeq[2:])
-    ntArr = [fullSeq, fullSeq[1:], fullSeq[2:]]
-    aaSeqsArr = [firstSeq, secondSeq, thirdSeq]
-    cdrArr = []
-    posArr = []
-    fPharr = []
-    for aaSeq in aaSeqsArr:
-        (cdr, pos, curPh) = getCDR3(aaSeq, vSeg, jSeg)
-        cdrArr.append(cdr)
-        posArr.append(pos)
-        fPharr.append(curPh)
-    maxLen = 0
-    bestCDR = ''
-    bestSeq = ''
-    hasStop = False
-    bestPos = -1
-    bestCDRnt = ''
-    foundGood = False
-    vPos = -1
-    jPos = -1
-    fPh = False
+def find_v_and_j_aa_map(v_seg, j_seg, full_seq):
+    f_dict = dict()
+    first_seq = get_nt_seq(full_seq)
+    second_seq = get_nt_seq(full_seq[1:])
+    third_seq = get_nt_seq(full_seq[2:])
+    nt_arr = [full_seq, full_seq[1:], full_seq[2:]]
+    aa_seqs_arr = [first_seq, second_seq, third_seq]
+    cdr_arr = []
+    pos_arr = []
+    f_ph_arr = []
+    for aa_seq in aa_seqs_arr:
+        (cdr, pos, cur_ph) = get_cdr3(aa_seq, v_seg, j_seg)
+        cdr_arr.append(cdr)
+        pos_arr.append(pos)
+        f_ph_arr.append(cur_ph)
+    max_len = 0
+    best_cdr = ''
+    best_seq = ''
+    has_stop = False
+    best_pos = -1
+    best_cdr_nt = ''
+    found_good = False
+    v_pos = -1
+    j_pos = -1
+    f_ph = False
     for i in range(0, 3):
-        if posArr[i] != -1:
-            if ((cdrArr[i] != 'Only J') & (cdrArr[i] != 'Only V')):
-                if len(cdrArr[i]) > maxLen:
-                    if cdrArr[i].find('*') == -1:
-                        foundGood = True
-                        bestCDR = cdrArr[i]
-                        bestPos = posArr[i]
-                        maxLen = len(cdrArr[i])
-                        bestSeq = ntArr[i]
-                        fPh = fPharr[i]
+        if pos_arr[i] != -1:
+            if ((cdr_arr[i] != 'Only J') & (cdr_arr[i] != 'Only V')):
+                if len(cdr_arr[i]) > max_len:
+                    if cdr_arr[i].find('*') == -1:
+                        found_good = True
+                        best_cdr = cdr_arr[i]
+                        best_pos = pos_arr[i]
+                        max_len = len(cdr_arr[i])
+                        best_seq = nt_arr[i]
+                        f_ph = f_ph_arr[i]
                     else:
-                        if maxLen == 0:
-                            foundGood = True
-                            bestPos = posArr[i]
-                            bestCDR = cdrArr[i]
-                            maxLen = len(cdrArr[i])
-                            bestSeq = ntArr[i]
-                            hasStop = True
-                            fPh = fPharr[i]
+                        if max_len == 0:
+                            found_good = True
+                            best_pos = pos_arr[i]
+                            best_cdr = cdr_arr[i]
+                            max_len = len(cdr_arr[i])
+                            best_seq = nt_arr[i]
+                            has_stop = True
+                            f_ph = f_ph_arr[i]
                 else:
-                    if hasStop == True:
-                        if cdrArr[i].find('*') == -1:
-                            foundGood = True
-                            bestPos = posArr[i]
-                            hasStop = False
-                            bestCDR = cdrArr[i]
-                            maxLen = len(cdrArr[i])
-                            bestSeq = ntArr[i]
-                            fPh = fPharr[i]
+                    if has_stop == True:
+                        if cdr_arr[i].find('*') == -1:
+                            found_good = True
+                            best_pos = pos_arr[i]
+                            has_stop = False
+                            best_cdr = cdr_arr[i]
+                            max_len = len(cdr_arr[i])
+                            best_seq = nt_arr[i]
+                            f_ph = f_ph_arr[i]
             else:
-                if not foundGood:
-                    fPh = fPharr[i]
-                    if (cdrArr[i] == 'Only J'):
-                        jPos = posArr[i] - i
-                    elif (cdrArr[i] == 'Only V'):
-                        vPos = posArr[i] - i
-    if ((vPos != -1) & (jPos != -1) & (not foundGood)):
-        bestCDRnt = fullSeq[3 * vPos:3 * jPos]
-        bestCDR = 'NA'
-    elif bestPos != -1:
-        bestCDRnt = bestSeq[3 * bestPos: 3 * bestPos + 3 * len(bestCDR)]
-    if bestCDR.find('*') != -1:
+                if not found_good:
+                    f_ph = f_ph_arr[i]
+                    if (cdr_arr[i] == 'Only J'):
+                        j_pos = pos_arr[i] - i
+                    elif (cdr_arr[i] == 'Only V'):
+                        v_pos = pos_arr[i] - i
+    if ((v_pos != -1) & (j_pos != -1) & (not found_good)):
+        best_cdr_nt = full_seq[3 * v_pos:3 * j_pos]
+        best_cdr = 'NA'
+    elif best_pos != -1:
+        best_cdr_nt = best_seq[3 * best_pos: 3 * best_pos + 3 * len(best_cdr)]
+    if best_cdr.find('*') != -1:
         stat = 'Unproductive - stop codon'
-    elif fPh:
+    elif f_ph:
         stat = 'Productive (no 118 PHE found)'
     else:
         stat = 'Productive'
-    if maxLen == 0:
-        if (('Only J' in cdrArr) & ('Only V' in cdrArr)):
+    if max_len == 0:
+        if (('Only J' in cdr_arr) & ('Only V' in cdr_arr)):
             stat = 'Unproductive - Frame shift'
         else:
-            if (('Only J' not in cdrArr) & ('Only V' in cdrArr)):
+            if (('Only J' not in cdr_arr) & ('Only V' in cdr_arr)):
                 stat = 'Unproductive - found only V segment'
-            elif (('Only J' in cdrArr) & ('Only V' not in cdrArr)):
+            elif (('Only J' in cdr_arr) & ('Only V' not in cdr_arr)):
                 stat = 'Unproductive - found only J segment'
-            elif (('Only J' not in cdrArr) & ('Only V' not in cdrArr)):
+            elif (('Only J' not in cdr_arr) & ('Only V' not in cdr_arr)):
                 stat = 'Unproductive - didn\'t find V and J segment'
             else:
                 stat = 'Unproductive'
-            bestCDR = 'NA'
-            bestCDRnt = 'NA'
-    fDict['stat'] = stat
-    fDict['CDR3 AA'] = bestCDR
-    fDict['CDR3 NT'] = bestCDRnt
-    fDict['Full Seq'] = fullSeq
-    return fDict
+            best_cdr = 'NA'
+            best_cdr_nt = 'NA'
+    f_dict['stat'] = stat
+    f_dict['CDR3 AA'] = best_cdr
+    f_dict['CDR3 NT'] = best_cdr_nt
+    f_dict['Full Seq'] = full_seq
+    return f_dict
 
 
-def getCDR3(aaSeq, vSeq, jSeq):
-    minDist = 14
+def get_cdr3(aa_seq, v_seq, j_seq):
+    min_dist = 14
     pos = -1
-    for i in range(0, len(aaSeq) - len(vSeq) + 1):
-        subAA = aaSeq[i:i + len(vSeq)]
-        if len(subAA) != len(vSeq):
+    for i in range(0, len(aa_seq) - len(v_seq) + 1):
+        sub_aa = aa_seq[i:i + len(v_seq)]
+        if len(sub_aa) != len(v_seq):
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! Wrong sub length\n')
             sys.stderr.flush()
         dist = 0
-        for k in range(0, len(vSeq)):
-            if vSeq[k] != subAA[k]:
+        for k in range(0, len(v_seq)):
+            if v_seq[k] != sub_aa[k]:
                 dist += 1
-        if ((dist < minDist) & (subAA.endswith('C'))):
-            minDist = dist
-            pos = i + len(vSeq)
-    jPos = -1
-    minDistJ = 4
-    curPh = False
-    for j in range(pos + 1, len(aaSeq) - len(jSeq) + 1):
-        subAA = aaSeq[j: j + len(jSeq)]
-        if len(subAA) != len(jSeq):
+        if ((dist < min_dist) & (sub_aa.endswith('C'))):
+            min_dist = dist
+            pos = i + len(v_seq)
+    j_pos = -1
+    min_dist_j = 4
+    cur_ph = False
+    for j in range(pos + 1, len(aa_seq) - len(j_seq) + 1):
+        sub_aa = aa_seq[j: j + len(j_seq)]
+        if len(sub_aa) != len(j_seq):
             sys.stderr.write(str(datetime.datetime.now()) + ' Error! Wrong subj length\n')
             sys.stderr.flush()
         dist = 0
-        for m in range(0, len(jSeq)):
-            if jSeq[m] != subAA[m]:
+        for m in range(0, len(j_seq)):
+            if j_seq[m] != sub_aa[m]:
                 dist += 1
-        if (dist <= minDistJ):
-            if isLegal(subAA):
-                jPos = j
-                minDistJ = dist
-                curPh = False
+        if (dist <= min_dist_j):
+            if is_legal(sub_aa):
+                j_pos = j
+                min_dist_j = dist
+                cur_ph = False
             else:
-                if dist < minDistJ:
-                    curPh = True
-                    jPos = j
-                    minDistJ = dist
+                if dist < min_dist_j:
+                    cur_ph = True
+                    j_pos = j
+                    min_dist_j = dist
     if pos == -1:
-        if jPos != -1:
-            return ('Only J', jPos, curPh)
+        if j_pos != -1:
+            return ('Only J', j_pos, cur_ph)
         else:
-            return ('No V/J found', -1, curPh)
+            return ('No V/J found', -1, cur_ph)
     else:
-        if jPos == -1:
-            return ('Only V', pos, curPh)
-    return (aaSeq[pos:jPos], pos, curPh)
+        if j_pos == -1:
+            return ('Only V', pos, cur_ph)
+    return (aa_seq[pos:j_pos], pos, cur_ph)
 
 
 # Checks that the conserved amino acids remain
-def isLegal(subAA):
-    if (len(subAA) < 4):
+def is_legal(sub_aa):
+    if (len(sub_aa) < 4):
         return False
-    if (subAA[0] == 'F'):
-        if ((subAA[1] == 'G') | (subAA[3] == 'G')):
+    if (sub_aa[0] == 'F'):
+        if ((sub_aa[1] == 'G') | (sub_aa[3] == 'G')):
             return True
-    if ((subAA[1] == 'G') & (subAA[3] == 'G')):
+    if ((sub_aa[1] == 'G') & (sub_aa[3] == 'G')):
         return True
-    if ((subAA[0] == 'G') & (subAA[2] == 'G')):
+    if ((sub_aa[0] == 'G') & (sub_aa[2] == 'G')):
         return True
-    if subAA.startswith('GR'):
+    if sub_aa.startswith('GR'):
         return True
-    if subAA.startswith('SR'):
+    if sub_aa.startswith('SR'):
         return True
     return False
 
 
-def getBestJaa(currSeq):
-    firstSeq = getNTseq(currSeq)
-    secondSeq = getNTseq(currSeq[1:])
-    thirdSeq = getNTseq(currSeq[2:])
+def get_best_j_aa(curr_seq):
+    first_seq = get_nt_seq(curr_seq)
+    second_seq = get_nt_seq(curr_seq[1:])
+    third_seq = get_nt_seq(curr_seq[2:])
     pos = 10
     seq = ''
     found = False
-    for s in [firstSeq, secondSeq, thirdSeq]:
-        tempSeq = s[:8]
-        indF = tempSeq.find('F')
-        if indF != -1:
-            if ((indF + 3) <= len(s)):
-                if s[indF + 3] == 'G':
+    for s in [first_seq, second_seq, third_seq]:
+        temp_seq = s[:8]
+        ind_f = temp_seq.find('F')
+        if ind_f != -1:
+            if ((ind_f + 3) <= len(s)):
+                if s[ind_f + 3] == 'G':
                     found = True
-                    if indF < pos:
-                        pos = indF
-                        seq = s[indF:]
-        indG = tempSeq.find('G')
-        if (indG != -1):
+                    if ind_f < pos:
+                        pos = ind_f
+                        seq = s[ind_f:]
+        ind_g = temp_seq.find('G')
+        if (ind_g != -1):
             if found == False:
-                if ((indG + 2) <= len(s)):
-                    if s[indG + 2] == 'G':
-                        if indG < pos:
+                if ((ind_g + 2) <= len(s)):
+                    if s[ind_g + 2] == 'G':
+                        if ind_g < pos:
                             found = True
-                            seq = s[indG:]
-                            pos = indG
-    if ((found == False) & (indF != -1)):
-        seq = s[indF:]
+                            seq = s[ind_g:]
+                            pos = ind_g
+    if ((found == False) & (ind_f != -1)):
+        seq = s[ind_f:]
     if seq != '':
         return seq
     else:
-        return firstSeq
+        return first_seq
 
 
-def getBestVaa(currSeq):
-    firstSeq = getNTseq(currSeq)
-    secondSeq = getNTseq(currSeq[1:])
-    thirdSeq = getNTseq(currSeq[2:])
+def get_best_v_aa(curr_seq):
+    first_seq = get_nt_seq(curr_seq)
+    second_seq = get_nt_seq(curr_seq[1:])
+    third_seq = get_nt_seq(curr_seq[2:])
     pos = 10
     seq = ''
-    for s in [firstSeq, secondSeq, thirdSeq]:
+    for s in [first_seq, second_seq, third_seq]:
         # print "S: " + s
-        tempSeq = s[-8:]
+        temp_seq = s[-8:]
         # print "tempSeq: " + tempSeq
-        ind = tempSeq.find('C')
-        stopInd = tempSeq.find('*')
+        ind = temp_seq.find('C')
+        stop_ind = temp_seq.find('*')
         # print "Ind: " + str(ind)
-        if ((ind != -1) & (stopInd == -1)):
+        if ((ind != -1) & (stop_ind == -1)):
             # print "inside the ind"
             if ind < pos:
-                goodRF = isGoodRF(s)
-                if goodRF:
+                good_rf = is_good_rf(s)
+                if good_rf:
                     pos = ind
                     seq = s[:-8 + ind + 1]
     if seq != '':
         return seq
     else:
-        return firstSeq
+        return first_seq
 
 
-def isGoodRF(s):
-    mInd = s.find('M')
-    if mInd == -1:
+def is_good_rf(s):
+    m_ind = s.find('M')
+    if m_ind == -1:
         return False
-    stopInd = s.find('*')
-    if stopInd == -1:
+    stop_ind = s.find('*')
+    if stop_ind == -1:
         return True
-    stopIndNext = s[stopInd + 1:].find('*')
-    while stopIndNext != -1:
-        stopInd = stopIndNext + stopInd + 1
-        stopIndNext = s[stopInd + 1:].find('*')
-        mInd = s[stopInd + 1:].find('M')
-        mInd = mInd + stopInd + 1
-    if mInd != -1:
+    stop_ind_next = s[stop_ind + 1:].find('*')
+    while stop_ind_next != -1:
+        stop_ind = stop_ind_next + stop_ind + 1
+        stop_ind_next = s[stop_ind + 1:].find('*')
+        m_ind = s[stop_ind + 1:].find('M')
+        m_ind = m_ind + stop_ind + 1
+    if m_ind != -1:
         return True
     else:
         return False

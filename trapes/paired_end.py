@@ -106,7 +106,7 @@ def write_junctions(vj_reads, out_name, bases, fasta_dict, id_name_dict, c_seq, 
     if ((top == -1) | (top > len(sorted_pairs))):
         for rec,count in sorted_pairs:
             SeqIO.write(rec, out, 'fasta')
-    else:
+    else:`
         if not by_exp:
             for i in range(0, top):
                 SeqIO.write(sorted_pairs[i][0], out, 'fasta')
