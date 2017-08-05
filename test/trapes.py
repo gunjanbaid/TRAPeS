@@ -1716,7 +1716,7 @@ def writeJunctions(vjReads,outName, bases, fastaDict, idNameDict, cSeq, top, vjC
                             pairCountDict[record] = curCont
     sorted_pairs = sorted(pairCountDict.items(), key=operator.itemgetter(1), reverse=True)
     if ((top == -1) | (top > len(sorted_pairs))):
-        for rec in pairCountDict:
+        for rec,count in sorted_pairs:
             SeqIO.write(rec ,out,'fasta')
     else:
         if not byExp:

@@ -104,7 +104,7 @@ def write_junctions(vj_reads, out_name, bases, fasta_dict, id_name_dict, c_seq, 
                             pair_count_dict[record] = cur_cont
     sorted_pairs = sorted(pair_count_dict.items(), key=operator.itemgetter(1), reverse=True)
     if ((top == -1) | (top > len(sorted_pairs))):
-        for rec in pair_count_dict:
+        for rec,count in sorted_pairs:
             SeqIO.write(rec, out, 'fasta')
     else:
         if not by_exp:
