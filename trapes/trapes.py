@@ -63,25 +63,25 @@ def runTCRpipe(genome, output, bam, unmapped, bases, strand, numIterations, thre
                 currFolder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
                 reconstruction = currFolder + '/vdj.alignment'
                 if genome == 'hg38':
-                    fasta = currFolder + 'Data/hg38/hg38.TCR.fa'
-                    bed = currFolder + 'Data/hg38/hg38.TCR.bed'
-                    mapping = currFolder + 'Data/hg38/hg38.id.name.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg38/hg38.TCR.conserved.AA.txt'
+                    fasta = currFolder + 'data/hg38/hg38.TCR.fa'
+                    bed = currFolder + 'data/hg38/hg38.TCR.bed'
+                    mapping = currFolder + 'data/hg38/hg38.id.name.mapping.TCR.txt'
+                    aaF = currFolder + 'data/hg38/hg38.TCR.conserved.AA.txt'
                 if genome == 'mm10':
-                    fasta = currFolder + 'Data/mm10/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10/mm10.conserved.AA.txt'
+                    fasta = currFolder + 'data/mm10/mm10.TCR.fa'
+                    bed = currFolder + 'data/mm10/mm10.TCR.bed'
+                    mapping = currFolder + 'data/mm10/mm10.gene.id.mapping.TCR.txt'
+                    aaF = currFolder + 'data/mm10/mm10.conserved.AA.txt'
                 if genome == 'mm10_ncbi':
-                    fasta = currFolder + 'Data/mm10_ncbi/mm10.TCR.fa'
-                    bed = currFolder + 'Data/mm10_ncbi/mm10.TCR.bed'
-                    mapping = currFolder + 'Data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/mm10_ncbi/mm10.conserved.AA.txt'
+                    fasta = currFolder + 'data/mm10_ncbi/mm10.TCR.fa'
+                    bed = currFolder + 'data/mm10_ncbi/mm10.TCR.bed'
+                    mapping = currFolder + 'data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
+                    aaF = currFolder + 'data/mm10_ncbi/mm10.conserved.AA.txt'
                 if genome == 'hg19':
-                    fasta = currFolder + 'Data/hg19/hg19.TCR.fa'
-                    bed = currFolder + 'Data/hg19/hg19.TCR.bed'
-                    mapping = currFolder + 'Data/hg19/hg19.gene.id.mapping.TCR.txt'
-                    aaF = currFolder + 'Data/hg19/hg19.conserved.AA.txt'
+                    fasta = currFolder + 'data/hg19/hg19.TCR.fa'
+                    bed = currFolder + 'data/hg19/hg19.TCR.bed'
+                    mapping = currFolder + 'data/hg19/hg19.gene.id.mapping.TCR.txt'
+                    aaF = currFolder + 'data/hg19/hg19.conserved.AA.txt'
 
                 runSingleCell(fasta, bed, noutput, nbam, nunmapped, mapping, bases, strand, reconstruction, aaF,
                               numIterations, thresholdScore,
