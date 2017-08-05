@@ -3,6 +3,7 @@ This module contains utility functions for various tasks.
 
 """
 
+import os
 
 def formatFiles(fullPath, bam, unmapped, output):
     found = True
@@ -76,3 +77,11 @@ def findStop(stP, stopArr):
         if x > stP:
             return x
     return -1
+
+def get_c_info(bedEntry, idNameDict, fastaDict):
+    bedArr = bedEntry.strip('\n').split('\t')
+    cId = bedArr[3]
+    cName = idNameDict[cId]
+    cSeq = fastaDict[cId]
+    return (cSeq, cName, cId)
+

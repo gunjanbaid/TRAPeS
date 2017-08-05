@@ -4,6 +4,8 @@ summary statistics for all cells.
 
 """
 
+import os
+
 
 def makeSingleCellOutputFile(alphaDict, betaDict, output, betaRsem, alphaRsem, alphaBam, betaBam, fastaDict,
                              unDictAlpha, unDictBeta, idNameDict):

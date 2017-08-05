@@ -14,7 +14,8 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
 
-from process_single_cell import get_c_info
+from utils import get_c_info
+
 
 def analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, chain, strand, low_q, top, by_exp,
                   read_overlap):

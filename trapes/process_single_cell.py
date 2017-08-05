@@ -14,7 +14,7 @@ from Bio.Alphabet import IUPAC
 
 from paired_end import analyze_chain, run_rsem
 from write_output_files import makeSingleCellOutputFile
-
+from utils import get_c_info
 
 def runSingleCell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aaF, numIterations,
                   thresholdScore, minOverlap, rsem, bowtie2, lowQ, samtools, top, byExp, readOverlap, oneSide):
@@ -153,15 +153,6 @@ def makeAADict(aaF):
         l = f.readline()
     f.close()
     return fDict
-
-
-def get_c_info(bedEntry, idNameDict, fastaDict):
-    bedArr = bedEntry.strip('\n').split('\t')
-    cId = bedArr[3]
-    cName = idNameDict[cId]
-    cSeq = fastaDict[cId]
-    return (cSeq, cName, cId)
-
 
 def createTCRFullOutput(fastaDict, tcr, outName, bases, mapDict, cSeq, cName, cId, oneSide):
     tcrF = open(tcr, 'rU')
