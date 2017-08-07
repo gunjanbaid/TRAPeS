@@ -97,7 +97,7 @@ def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
     sum_f_out.close()
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-genome', '-g', '-G', help='Alignment genome. Currently supported: mm10, mm10_ncbi and hg38',
                         required=True)
@@ -152,3 +152,7 @@ if __name__ == '__main__':
                  args.single_cell, args.path, args.sum_f, args.low_q, args.samtools, args.top, args.by_exp,
                  args.read_overlap,
                  args.one_side)
+
+
+if __name__ == '__main__':
+    main()

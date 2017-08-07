@@ -11,7 +11,7 @@ python trapes.py -path test_output/test_data_old/paired_end -bam sorted.bam -unm
 output -sumF test_output/summary -genome hg38 > test_output/output_old.out
 
 python ../trapes/trapes.py -path test_output/test_data_new/paired_end -bam sorted.bam -unmapped unmapped.bam -output \
-output -sumF test_output/summary -genome hg38 > test_output/output_new.out
+output -sum_f test_output/summary -genome hg38 > test_output/output_new.out
 
 FILES="output.alpha.junctions.txt
 output.alpha.mapped.and.unmapped.fa
