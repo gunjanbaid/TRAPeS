@@ -6,7 +6,7 @@ TRAPeS reconstruct the TCR in 3 steps: For each chain, it first identify the V a
 
 For more information, see our paper in *Nucleic Acids Research* [here](https://academic.oup.com/nar/article-lookup/doi/10.1093/nar/gkx615) or our bioRxiv preprint [here](http://biorxiv.org/content/early/2016/08/31/072744)
 
-##installing TRAPeS <br />  
+## Installing TRAPeS <br />  
 
 TRAPeS is written in Python and C++, and currently works on Linux (a version for OSX will be published soon). TRAPeS require the following python libraries: <br />  
 
@@ -19,12 +19,12 @@ In addition, TRAPeS requires the following software:  <br />
 -	RSEM  <br />
 - samtools <br />
 
-### before running TRAPeS  <br />
+### Before running TRAPeS  <br />
 TRAPeS takes as input mapped and unmapped files of reads after genomic alignment (e.g. using TopHat).<br />
 TRAPeS assumes a certain folder structure: It assumes that each cell has its own folder, and all of those folders are under one path. Also, it assumes that each cell folder has identical subfolder structure.<br />
 
  
-##Running TRAPeS <br />
+## Running TRAPeS <br />
 
 To run TRAPeS, simply run:<br />
  
@@ -34,7 +34,7 @@ To display help: <br />
 
 >python  trapes.py -h <br />
  
-###Options when running TRAPeS <br />
+### Options when running TRAPeS <br />
 
 **Input files:** <br />
 <br />
