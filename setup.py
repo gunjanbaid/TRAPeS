@@ -10,4 +10,9 @@ setup(
   download_url = 'https://github.com/gunjanbaid/TRAPeS/archive/0.1.tar.gz', # TODO Need to set up tags for original repo
   keywords = ['RNA-seq', 'T-cell'], # arbitrary keywords
   classifiers = [],
+  entry_points={ 
+    'console_scripts': [
+      'trapes=trapes.trapes:main',
+    ],
+  },
 )
