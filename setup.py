@@ -10,13 +10,4 @@ setup(
   download_url = 'https://github.com/gunjanbaid/TRAPeS/archive/0.1.tar.gz', # TODO Need to set up tags for original repo
   keywords = ['RNA-seq', 'T-cell'], # arbitrary keywords
   classifiers = [],
-  install_requires=[
-      "Django >= 1.1.1",
-      "caldav == 0.1.4",
-  ],
-  entry_points={
-      'trapes':
-      ['release = trapes.trapes:main',
-       'prerelease = trapes.trapes:main',]
-  },
 )
