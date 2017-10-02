@@ -16,32 +16,33 @@ import write_output_files
 import utils
 
 
-def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, aa_f, num_iterations,
-                    threshold_score, min_overlap, rsem, bowtie2, low_q, samtools, top, by_exp, read_overlap, one_side):
+def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, 
+    aa_f, num_iterations, threshold_score, min_overlap, rsem, bowtie2, low_q, samtools, top, 
+    by_exp, read_overlap, one_side, ref_ind, trim):
     id_name_dict = make_id_name_dict(mapping)
     fasta_dict = make_fasta_dict(fasta)
     vdj_dict = make_vdj_bed_dict(bed, id_name_dict)
     sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
     sys.stdout.flush()
-    un_dict_alpha = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A',
-                                             strand,
-                                             low_q, top,
-                                             by_exp, read_overlap)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
-    sys.stdout.flush()
-    un_dict_beta = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B',
-                                            strand, low_q, top,
-                                            by_exp, read_overlap)
+    if utils.is_paired_end(bam):
+        un_dict_alpha = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A',strand, low_q, top, by_exp, read_overlap)
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
+        sys.stdout.flush()
+        un_dict_beta = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B',strand, low_q, top, by_exp, read_overlap)
+    else:
+        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
+        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        single_end.analyze_chain_single_end(fasta_dict, vdj_dict, output, bam, unmapped, 
+            id_name_dict, bases, strand, lowQ, bowtie2, ref_ind, trim)    
+        un_dict_alpha = single_end.write_unmapped_reads_to_dict_se(unmapped)
+        un_dict_beta = dict(un_dict_beta)
+
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt',
-                     output + '.reconstructed.junctions.beta.fa', str(num_iterations), str(threshold_score),
-                     str(min_overlap)])
+    subprocess.call([reconstruction, output + '.beta.mapped.and.unmapped.fa', output + '.beta.junctions.txt', output + '.reconstructed.junctions.beta.fa', str(num_iterations), str(threshold_score), str(min_overlap)])
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing alpha chains\n")
     sys.stdout.flush()
-    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt',
-                     output + '.reconstructed.junctions.alpha.fa', str(num_iterations), str(threshold_score),
-                     str(min_overlap)])
+    subprocess.call([reconstruction, output + '.alpha.mapped.and.unmapped.fa', output + '.alpha.junctions.txt', output + '.reconstructed.junctions.alpha.fa', str(num_iterations), str(threshold_score), str(min_overlap)])
     sys.stdout.write(str(datetime.datetime.now()) + " Creating full TCR sequencing\n")
     sys.stdout.flush()
     full_tcr_file_alpha = output + '.alpha.full.TCRs.fa'
@@ -59,7 +60,10 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
         out_dir = output[:out_dir_ind + 1]
     else:
         out_dir = os.getcwd()
-    paired_end.run_rsem(out_dir, rsem, bowtie2, full_tcr_file_alpha, full_tcr_file_beta, output, samtools)
+    if paired_end:
+        paired_end.run_rsem(out_dir, rsem, bowtie2, full_tcr_file_alpha, full_tcr_file_beta, output, samtools)
+    else:
+        single_end.runRsemSE(outDir, rsem, bowtie2, fullTcrFileAlpha, fullTcrFileBeta, output, samtools)
     pick_final_isoforms(full_tcr_file_alpha, full_tcr_file_beta, output)
     best_alpha = output + '.alpha.full.TCRs.bestIso.fa'
     best_beta = output + '.beta.full.TCRs.bestIso.fa'
@@ -80,9 +84,9 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
     beta_bam = output + '.beta.rsem.out.transcript.sorted.bam'
     sys.stdout.write(str(datetime.datetime.now()) + " Writing results to summary file\n")
     sys.stdout.flush()
-    write_output_files.make_single_cell_output_file(f_dict_alpha, f_dict_beta, output, beta_rsem_out, alpha_rsem_out,
-                                                    alpha_bam, beta_bam, fasta_dict,
-                                                    un_dict_alpha, un_dict_beta, id_name_dict)
+    write_output_files.make_single_cell_output_file(f_dict_alpha, f_dict_beta, output, 
+        beta_rsem_out, alpha_rsem_out, alpha_bam, beta_bam, fasta_dict,
+        un_dict_alpha, un_dict_beta, id_name_dict)
 
 
 # Creates a dictionary of ENSEMBL ID -> Gene name

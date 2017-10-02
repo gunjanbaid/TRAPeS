@@ -86,3 +86,19 @@ def get_c_info(bed_entry, id_name_dict, fasta_dict):
     c_name = id_name_dict[c_id]
     c_seq = fasta_dict[c_id]
     return (c_seq, c_name, c_id)
+
+
+def is_paired_end(filename):
+    """
+    Parameters
+    ----------
+    filename : str
+        Name of BAM/SAM file.
+
+    Returns
+    -------
+    boolean
+        True if reads are paired-end, False otherwise. 
+
+    """
+    return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
