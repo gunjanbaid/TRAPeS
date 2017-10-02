@@ -4,6 +4,7 @@ This module contains utility functions for various tasks.
 """
 
 import os
+import subprocess
 
 
 def format_files(full_path, bam, unmapped, output):

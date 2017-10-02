@@ -163,9 +163,6 @@ def main():
     parser.add_argument('-overlap', '-ol', '-OL', 
         help='Number of minimum bases that overlaps V and J ends, default is 10', 
         type=int, default=10)
-    parser.add_argument('-overlap', '-ol', '-OL', 
-        help='Number of minimum bases that overlaps V and J ends, default is 10', 
-        type=int, default=10)
     parser.add_argument('-trim',
         help='The number of bases to trim from each end of a sigle-end read.', 
         type=int, default=25)
