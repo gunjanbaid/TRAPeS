@@ -6,8 +6,8 @@ TRAPeS reconstruct the TCR in 3 steps: For each chain, it first identify the V a
 
 For more information, see:
 
-* Our *[paper in Nucleic Acids Research](https://academic.oup.com/nar/article-lookup/doi/10.1093/nar/gkx615)*  
-* Our *[bioRxiv preprint](http://biorxiv.org/content/early/2016/08/31/072744)*  
+* Our **[paper in Nucleic Acids Research](https://academic.oup.com/nar/article-lookup/doi/10.1093/nar/gkx615)**  
+* Our **[bioRxiv preprint](http://biorxiv.org/content/early/2016/08/31/072744)**  
 
 
 ## Installing TRAPeS   
