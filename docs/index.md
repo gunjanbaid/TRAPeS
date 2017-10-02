@@ -51,59 +51,56 @@ To display help: <br />
 <br />
 **Parameters for the TCR reconstruction** <br />
 <br />
--score : The threshold score for the alignment of a read to the V or J segment. Any putative CDR3-originating read that its alignment to the V or J segments passes this score will be used for reconstruction. Default is 15, but should be changed based on sequencing quality and length. In the next version the default will be computed based on the length of the input reads <br />
+`-score` : The threshold score for the alignment of a read to the V or J segment. Any putative CDR3-originating read that its alignment to the V or J segments passes this score will be used for reconstruction. Default is 15, but should be changed based on sequencing quality and length. In the next version the default will be computed based on the length of the input reads <br />
 
--overlap : Minimum number of bases that the extended V and J segments should overlap in order to stop the reconstruction. Default is 10. <br />
+`-overlap` : Minimum number of bases that the extended V and J segments should overlap in order to stop the reconstruction. Default is 10. <br />
 
--iterations : Maximum number of times to extend the V and J segments. If after that number of iterations the V and J segments still do not overlap the reconstruction is determined as unsuccessful. Default is 20. <br />  
+`-iterations` : Maximum number of times to extend the V and J segments. If after that number of iterations the V and J segments still do not overlap the reconstruction is determined as unsuccessful. Default is 20. <br />  
 
--bases : Number of bases from the V and the J segments that will be used as the initial template for the reconstruction. Default is min(length(V), length(J)). <br />
+`-bases` : Number of bases from the V and the J segments that will be used as the initial template for the reconstruction. Default is min(length(V), length(J)). <br />
 
--lowQ	 : By default, the putative CDR3-originating reads are identified as unmapped reads whose mate is aligned to the V/J/C segments. However, those reads can by chance be mapped to other places in the genome (usually low quality mapping). By including the –lowQ tag the set of CDR3-origintating reads will also include the reads that map to other places in the genome. We recommend using this tag. <br />
+`-lowQ`	: By default, the putative CDR3-originating reads are identified as unmapped reads whose mate is aligned to the V/J/C segments. However, those reads can by chance be mapped to other places in the genome (usually low quality mapping). By including the –lowQ tag the set of CDR3-origintating reads will also include the reads that map to other places in the genome. We recommend using this tag. <br />
 
--top: Rank all the V-J pairs based on the number of mapped reads, and reconstruct only the top X number of V-J pairs. Default: reconstruct all V-J pairs. Recommended for very deep libraries or libraries when there are many possible V-J pairing. <br />
+`-top` : Rank all the V-J pairs based on the number of mapped reads, and reconstruct only the top X number of V-J pairs. Default: reconstruct all V-J pairs. Recommended for very deep libraries or libraries when there are many possible V-J pairing. <br />
 
--byExp: Must be used along with the top parameter. Rank all the V-J pairs based on the number of mapped reads, but instead of reconstructing only the top X number of V-J pairs, randomly choose 2 V-J pairs with the same rank (same number of mapped reads) and reconstruct them. Then TRAPeS will move on to the next rank until the number of V-J pairs specified with top has been reconstructed. Default: off. <br />
+`-byExp` : Must be used along with the top parameter. Rank all the V-J pairs based on the number of mapped reads, but instead of reconstructing only the top X number of V-J pairs, randomly choose 2 V-J pairs with the same rank (same number of mapped reads) and reconstruct them. Then TRAPeS will move on to the next rank until the number of V-J pairs specified with top has been reconstructed. Default: off. <br />
 
--oneSide: Add this parameter to also search for productive reconstructions only from the extended V segment (in case of no overlap between the extended V and extended J segments). Default: off. <br />
+`-oneSide` : Add this parameter to also search for productive reconstructions only from the extended V segment (in case of no overlap between the extended V and extended J segments). Default: off. <br />
 
--readOverlap: Consider only reads with that number of bases overlapping V/J/C segments as mapped reads. Default: 1. Note: This parameter is still being tested <br />
+`-readOverlap` : Consider only reads with that number of bases overlapping V/J/C segments as mapped reads. Default: 1. Note: This parameter is still being tested <br />
 
 <br />
 
 **Paths to other software:** <br />
 <br />
--bowtie2 : Path to bowtie2. If not used assumes bowtie2 is in the default PATH <br />
+`-bowtie2` : Path to bowtie2. If not used assumes bowtie2 is in the default PATH <br />
 
--rsem: Path to RSEM. If not used assumes RSEM is in the default PATH <br />
+`-rsem` : Path to RSEM. If not used assumes RSEM is in the default PATH <br />
 
--samtools: Path to samtools. If not used assumes samtools is in the default PATH <br />
+`-samtools` : Path to samtools. If not used assumes samtools is in the default PATH <br />
 <br />
 **Other parameters:** <br />
 <br />
--singleCell : Add this tag if you are only running TRAPeS on a single cell (not a library of many single cells). Currently not active <br />
+`-singleCell` : Add this tag if you are only running TRAPeS on a single cell (not a library of many single cells). Currently not active <br />
 
--genome : The genome used for genomic alignment. Currently only hg38 or mm10 are supported. For mm10 with NCBI chromosome naming use mm10_ncbi. <br />
+`-genome` : The genome used for genomic alignment. Currently only hg38 or mm10 are supported. For mm10 with NCBI chromosome naming use mm10_ncbi. <br />
 
--strand : Strand orientation of the reads, options are [minus, plus, none]. For transcripts on the positive strand, to which strand does the rightmost (in genomic coordinates) mate of the read map to. Default is minus. <br />
+`-strand` : Strand orientation of the reads, options are [minus, plus, none]. For transcripts on the positive strand, to which strand does the rightmost (in genomic coordinates) mate of the read map to. Default is minus. <br />
 <br /><br />
 
-## TRAPeS output<br />
-<br />
-- sumF.summary.txt : Summary of the reconstruction status in each cell (successful/unsuccessful). <br />
+## TRAPeS output
+* sumF.summary.txt : Summary of the reconstruction status in each cell (successful/unsuccessful).  
+* sumF.TCRs.txt : A list of all reconstructions (productive, unproductive and partial) of all cells.    
 
-- sumF.TCRs.txt : A list of all reconstructions (productive, unproductive and partial) of all cells. <br />
-<br />
-In addition, in each single cell folder you can find the following output files: <br />
-<br />
--	output.\[alpha/beta\].junctions.txt : The set of V-J pairs found (before reconstruction) <br />
--	output.reconstructed.junctions.\[alpha/beta\].fa : the set of reconstructed junction. If reconstruction was unsuccessful, the partial V and J reconstructions will be separated by N’s. <br />
--	output.\[alpha/beta\].mapped.and.unammed.fa : the set of the putative CDR3-originating reads used for the reconstruction.  <br />
--	output.\[alpha/beta\].\[R1/R2\].fa : Set of paired-end reads that are aligned to the reconstructed TCRs in order to quantify the expression of each TCR using RSEM. <br />
--	output.\[alpha/beta\].rsem.out* : The output files created by RSEM. <br />
--	output.\[alpha/beta\].full.TCRs.fa : Fasta file with the full TCR sequences. <br />
--	output.\[alpha/beta\].full.TCRs.bestIso.fa : Fasta file with the full sequences of the TCRs, after choosing only the highly expressed isoform in case of more than one isoform for the V/J/C segments. <br />
--	output.summary.txt : Summary of all the reconstructed chains in this cell. <br />
+In addition, in each single cell folder you can find the following output files:  
+*	output.\[alpha/beta\].junctions.txt : The set of V-J pairs found (before reconstruction)   
+*	output.reconstructed.junctions.\[alpha/beta\].fa : the set of reconstructed junction. If reconstruction was unsuccessful, the partial V and J reconstructions will be separated by N’s.   
+*	output.\[alpha/beta\].mapped.and.unammed.fa : the set of the putative CDR3-originating reads used for the reconstruction.    
+*	output.\[alpha/beta\].\[R1/R2\].fa : Set of paired-end reads that are aligned to the reconstructed TCRs in order to quantify the expression of each TCR using RSEM.    
+*	output.\[alpha/beta\].rsem.out* : The output files created by RSEM.      
+*	output.\[alpha/beta\].full.TCRs.fa : Fasta file with the full TCR sequences.   
+*	output.\[alpha/beta\].full.TCRs.bestIso.fa : Fasta file with the full sequences of the TCRs, after choosing only the highly expressed isoform in case of more than one isoform for the V/J/C segments.   
+*	output.summary.txt : Summary of all the reconstructed chains in this cell.    
 
 <br /><br />
 
