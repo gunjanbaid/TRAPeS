@@ -47,8 +47,10 @@ python trapes.py -h
 
 ### Input files:
 
-`-path` : The for the folder with all the single cell samples. Assumes every subfolder under this path is a folder of a single cell sequencing results. 
-`-bam` : The location of the sorted mapped bam file relative to the single cell folder. For example, if under each single cell folder there is a subfolder named “TopHat\_Output” and the mapped file is under that folder and named mapped.bam, the command should read “–bam TopHat\_Output/mapped.bam”. 
+`-path` : The for the folder with all the single cell samples. Assumes every subfolder under this path is a folder of a single cell sequencing results.   
+
+`-bam` : The location of the sorted mapped bam file relative to the single cell folder. For example, if under each single cell folder there is a subfolder named “TopHat\_Output” and the mapped file is under that folder and named mapped.bam, the command should read “–bam TopHat\_Output/mapped.bam”.   
+
 `-unmapped` : the location of the bam file containing the unmapped reads. Similar to the –bam tag, it is relative to the single cell folder. 
 
 
