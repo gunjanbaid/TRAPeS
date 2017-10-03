@@ -20,7 +20,7 @@ output.beta.mapped.and.unmapped.fa
 output.reconstructed.junctions.alpha.fa
 output.reconstructed.junctions.beta.fa"
 
-echo "Comparing old and new single end output"
+echo "Comparing old and new paired-end output"
 
 for f in $FILES
 do

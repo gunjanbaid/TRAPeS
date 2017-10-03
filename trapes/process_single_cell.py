@@ -14,7 +14,7 @@ from Bio.Alphabet import IUPAC
 import paired_end
 import write_output_files
 import utils
-
+import single_end
 
 def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, reconstruction, 
     aa_f, num_iterations, threshold_score, min_overlap, rsem, bowtie2, low_q, samtools, top, 
@@ -22,20 +22,19 @@ def run_single_cell(fasta, bed, output, bam, unmapped, mapping, bases, strand, r
     id_name_dict = make_id_name_dict(mapping)
     fasta_dict = make_fasta_dict(fasta)
     vdj_dict = make_vdj_bed_dict(bed, id_name_dict)
-    sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
-    sys.stdout.flush()
     if utils.is_paired_end(bam):
+        sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing alpha chain\n")
+        sys.stdout.flush()
         un_dict_alpha = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'A',strand, low_q, top, by_exp, read_overlap)
         sys.stdout.write(str(datetime.datetime.now()) + " Pre-processing beta chain\n")
         sys.stdout.flush()
         un_dict_beta = paired_end.analyze_chain(fasta_dict, vdj_dict, output, bam, unmapped, id_name_dict, bases, 'B',strand, low_q, top, by_exp, read_overlap)
     else:
-        print(str(datetime.datetime.now()) + " Pre-processing alpha chain")
-        print(str(datetime.datetime.now()) + " Pre-processing beta chain")
+        print(str(datetime.datetime.now()) + " Pre-processing alpha and beta chains")
         single_end.analyze_chain_single_end(fasta_dict, vdj_dict, output, bam, unmapped, 
-            id_name_dict, bases, strand, lowQ, bowtie2, ref_ind, trim)    
+            id_name_dict, bases, strand, low_q, bowtie2, ref_ind, trim)    
         un_dict_alpha = single_end.write_unmapped_reads_to_dict_se(unmapped)
-        un_dict_beta = dict(un_dict_beta)
+        un_dict_beta = dict(un_dict_alpha)
 
     sys.stdout.write(str(datetime.datetime.now()) + " Reconstructing beta chains\n")
     sys.stdout.flush()

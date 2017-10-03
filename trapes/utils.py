@@ -103,3 +103,9 @@ def is_paired_end(filename):
 
     """
     return int(subprocess.check_output(["samtools", "view", "-c", "-f", "1", filename], universal_newlines=True).strip())
+
+
+def remove_file(*args):
+    for filename in args:
+        subprocess.call(["rm", filename])
+

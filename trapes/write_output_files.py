@@ -5,6 +5,7 @@ summary statistics for all cells.
 """
 
 import os
+from Bio import SeqIO
 
 
 def make_single_cell_output_file(alpha_dict, beta_dict, output, beta_rsem, alpha_rsem, alpha_bam, beta_bam, fasta_dict,

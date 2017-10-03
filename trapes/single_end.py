@@ -12,6 +12,7 @@ import pysam
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Alphabet import IUPAC
+import utils
 
 
 def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDict, bases, strand,
@@ -81,7 +82,7 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
     mappedReadsDictBeta = findReadsAndSegments2(bam_sorted, mappedReadsDictBeta, idNameDict, 
         'B', allSegsB)
 
-    remove_file(temp1, temp2, temp3, bam_trimmed, bam_filtered, bam_sorted)
+    utils.remove_file(temp1, temp2, temp3, bam_trimmed, bam_filtered, bam_sorted)
      
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, 
         '-S', temp1, "--trim3", str(trim)])
@@ -90,7 +91,7 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
     subprocess.call([bowtieCall ,'-q --phred33  --score-min L,0,0', '-x', refInd, '-U', fastq1, 
         '-S', temp3, "--trim5", str(trim//2), "--trim3", str(trim//2)])    
     subprocess.call(["samtools", "merge", bam_trimmed, temp1, temp2, temp3])
-    remove_file(temp1, temp2, temp3)
+    utils.remove_file(temp1, temp2, temp3)
 
     bam_filtered_file = open(bam_filtered, "w")
     subprocess.call(["samtools", "view", "-b", "-F", "4", bam_trimmed], stdout=bam_filtered_file)
@@ -106,25 +107,48 @@ def analyze_chain_single_end(fastaDict, vdjDict, output, bam, unmapped, idNameDi
     mappedReadsDictBeta = findReadsAndSegments2(bam_sorted, mappedReadsDictBeta, idNameDict, 
         'B', allSegsB)
 
-    writeReadsFileSE(mappedReadsDictAlpha, alphaOutReads, fastq1, fastq2)
-    writeReadsFileSE(mappedReadsDictBeta, betaOutReads, fastq1, fastq2)
+    write_reads_file_se(mappedReadsDictAlpha, alphaOutReads, fastq1, fastq2)
+    write_reads_file_se(mappedReadsDictBeta, betaOutReads, fastq1, fastq2)
 
 
-def find_reads_and_segments(bam_f, mapped_reads_dict, id_name_dict, chain):
-    sam_file = pysam.AlignmentFile(bam_f, 'rb')
-    reads_iter = sam_file.fetch(until_eof=True)
-    for read in reads_iter:
+def findReadsAndSegments2(bamF, mappedReadsDict, idNameDict,chain, refs):
+    bamFile = pysam.AlignmentFile(bamF,'rb')
+    readsIter = bamFile.fetch()
+    for read in readsIter:
         if read.is_unmapped == False:
-            seg = sam_file.getrname(read.reference_id)
-            if seg in id_name_dict:
-                if id_name_dict[seg].find(chain) != -1:
-                    read_name = read.query_name
-                    if read_name not in mapped_reads_dict:
-                        mapped_reads_dict[read_name] = []
-                    if seg not in mapped_reads_dict[read_name]:
-                        mapped_reads_dict[read_name].append(seg)
-    sam_file.close()
-    return mapped_reads_dict
+            seg = bamFile.getrname(read.reference_id)
+            if seg in idNameDict and seg in refs:
+                overlap = int(read.get_overlap(read.reference_start, read.reference_end))
+                if overlap < 5:
+                    continue
+                if idNameDict[seg].find(chain) != -1:
+                    readName = read.query_name
+                    if readName not in mappedReadsDict:
+                        mappedReadsDict[readName] = []
+                    if seg not in mappedReadsDict[readName]:
+                        mappedReadsDict[readName].append(seg)
+    bamFile.close()
+    return mappedReadsDict
+
+
+def findReadsAndSegments(bamF, mappedReadsDict, idNameDict,chain):
+    bamFile = pysam.AlignmentFile(bamF,'rb')
+    readsIter = bamFile.fetch()
+    for read in readsIter:
+        if read.is_unmapped == False:
+            seg = bamFile.getrname(read.reference_id)
+            if seg in idNameDict:
+                overlap = int(read.get_overlap(read.reference_start, read.reference_end))
+                if overlap < 15:
+                    continue
+                if idNameDict[seg].find(chain) != -1:
+                    readName = read.query_name
+                    if readName not in mappedReadsDict:
+                        mappedReadsDict[readName] = []
+                    if seg not in mappedReadsDict[readName]:
+                        mappedReadsDict[readName].append(seg)
+    bamFile.close()
+    return mappedReadsDict
 
 
 def write_reads_file_se(mapped_reads_dict, out_reads, fastq, fastq_2):
@@ -197,7 +221,7 @@ def write_junction_file_se(mapped_reads_dict, id_name_dict, output, fasta_dict, 
                 for c_seg in c_segs:
                     add_segment_to_junction_file_se(v_seg, j_seg, c_seg, out, fasta_dict, bases, id_name_dict)
     out.close()
-
+    return v_segs, j_segs, c_segs
 
 def add_segment_to_junction_file_se(v_seg, j_seg, c_seg, out, fasta_dict, bases, id_name_dict):
     v_seq = fasta_dict[v_seg]
