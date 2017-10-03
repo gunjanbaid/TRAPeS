@@ -7,12 +7,14 @@ setup(
   author = 'Shaked Afik',
   author_email = 'safik@berkeley.edu',
   url = 'https://github.com/gunjanbaid/TRAPeS', # use the URL to the github repo
-  download_url = 'https://github.com/gunjanbaid/TRAPeS/archive/0.1.tar.gz', # TODO Need to set up tags for original repo
+  download_url = 'https://github.com/gunjanbaid/TRAPeS/archive/0.1.tar.gz',
   keywords = ['RNA-seq', 'T-cell'], # arbitrary keywords
   classifiers = [],
+  include_package_data=True,
   entry_points={ 
     'console_scripts': [
       'trapes=trapes.trapes:main',
     ],
   },
+  package_dir={'trapes': 'trapes'},
 )
