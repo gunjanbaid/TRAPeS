@@ -13,6 +13,7 @@ import datetime
 import utils
 import write_output_files
 import process_single_cell
+import pkg_resources
 
 
 def check_parameters(genome, strand, single_cell, path, sum_f):
@@ -61,31 +62,32 @@ def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
                 sys.stderr.flush()
             else:
                 curr_folder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
+                DATA_PATH = pkg_resources.resource_filename('trapes', 'data/')
                 reconstruction = curr_folder + 'vdj.alignment'
                 if genome == 'hg38':
-                    fasta = curr_folder + 'data/hg38/hg38.TCR.fa'
-                    bed = curr_folder + 'data/hg38/hg38.TCR.bed'
-                    mapping = curr_folder + 'data/hg38/hg38.id.name.mapping.TCR.txt'
-                    aa_f = curr_folder + 'data/hg38/hg38.TCR.conserved.AA.txt'
-                    ref_ind = curr_folder + 'data/hg38/index/hg38'
+                    fasta = DATA_PATH + 'hg38/hg38.TCR.fa'
+                    bed = DATA_PATH + 'hg38/hg38.TCR.bed'
+                    mapping = DATA_PATH + 'hg38/hg38.id.name.mapping.TCR.txt'
+                    aa_f = DATA_PATH + 'hg38/hg38.TCR.conserved.AA.txt'
+                    ref_ind = DATA_PATH + 'hg38/index/hg38'
                 if genome == 'mm10':
-                    fasta = curr_folder + 'data/mm10/mm10.TCR.fa'
-                    bed = curr_folder + 'data/mm10/mm10.TCR.bed'
-                    mapping = curr_folder + 'data/mm10/mm10.gene.id.mapping.TCR.txt'
-                    aa_f = curr_folder + 'data/mm10/mm10.conserved.AA.txt'
-                    ref_ind = curr_folder + 'data/mm10/index/mm10'
+                    fasta = DATA_PATH + 'mm10/mm10.TCR.fa'
+                    bed = DATA_PATH + 'mm10/mm10.TCR.bed'
+                    mapping = DATA_PATH + 'mm10/mm10.gene.id.mapping.TCR.txt'
+                    aa_f = DATA_PATH + 'mm10/mm10.conserved.AA.txt'
+                    ref_ind = DATA_PATH + 'mm10/index/mm10'
                 if genome == 'mm10_ncbi':
-                    fasta = curr_folder + 'data/mm10_ncbi/mm10.TCR.fa'
-                    bed = curr_folder + 'data/mm10_ncbi/mm10.TCR.bed'
-                    mapping = curr_folder + 'data/mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
-                    aa_f = curr_folder + 'data/mm10_ncbi/mm10.conserved.AA.txt'
-                    ref_ind = curr_folder + 'data/mm10_ncbi/index/mm10'
+                    fasta = DATA_PATH + 'mm10_ncbi/mm10.TCR.fa'
+                    bed = DATA_PATH + 'mm10_ncbi/mm10.TCR.bed'
+                    mapping = DATA_PATH + 'mm10_ncbi/mm10.gene.id.mapping.TCR.txt'
+                    aa_f = DATA_PATH + 'mm10_ncbi/mm10.conserved.AA.txt'
+                    ref_ind = DATA_PATH + 'mm10_ncbi/index/mm10'
                 if genome == 'hg19':
-                    fasta = curr_folder + 'data/hg19/hg19.TCR.fa'
-                    bed = curr_folder + 'data/hg19/hg19.TCR.bed'
-                    mapping = curr_folder + 'data/hg19/hg19.gene.id.mapping.TCR.txt'
-                    aa_f = curr_folder + 'data/hg19/hg19.conserved.AA.txt'
-                    ref_ind = curr_folder + 'data/hg19/index/hg19'
+                    fasta = DATA_PATH + 'hg19/hg19.TCR.fa'
+                    bed = DATA_PATH + 'hg19/hg19.TCR.bed'
+                    mapping = DATA_PATH + 'hg19/hg19.gene.id.mapping.TCR.txt'
+                    aa_f = DATA_PATH + 'hg19/hg19.conserved.AA.txt'
+                    ref_ind = DATA_PATH + 'hg19/index/hg19'
 
                 process_single_cell.run_single_cell(fasta, bed, noutput, nbam, nunmapped, mapping,
                     bases, strand, reconstruction, aa_f, num_iterations, threshold_score,

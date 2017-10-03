@@ -16,4 +16,5 @@ setup(
       'trapes=trapes.trapes:main',
     ],
   },
+  package_dir={'trapes': 'trapes'},
 )
