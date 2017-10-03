@@ -13,6 +13,7 @@ import datetime
 import utils
 import write_output_files
 import process_single_cell
+import pkg_resources
 
 
 def check_parameters(genome, strand, single_cell, path, sum_f):
