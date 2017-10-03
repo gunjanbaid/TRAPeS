@@ -63,7 +63,7 @@ def run_tcr_pipe(genome, output, bam, unmapped, bases, strand, num_iterations, t
             else:
                 curr_folder = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
                 DATA_PATH = pkg_resources.resource_filename('trapes', 'data/')
-                reconstruction = curr_folder + 'vdj.alignment'
+                reconstruction = pkg_resources.resource_filename('trapes', 'vdj.alignment')
                 if genome == 'hg38':
                     fasta = DATA_PATH + 'hg38/hg38.TCR.fa'
                     bed = DATA_PATH + 'hg38/hg38.TCR.bed'
