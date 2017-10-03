@@ -10,6 +10,7 @@ setup(
   download_url = 'https://github.com/gunjanbaid/TRAPeS/archive/0.1.tar.gz',
   keywords = ['RNA-seq', 'T-cell'], # arbitrary keywords
   classifiers = [],
+  include_package_data=True,
   entry_points={ 
     'console_scripts': [
       'trapes=trapes.trapes:main',

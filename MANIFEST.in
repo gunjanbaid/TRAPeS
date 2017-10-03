@@ -1,0 +1,11 @@
+include trapes/*.py
+include bin/*
+
+include data/hg19/*
+include data/hg19/index/*
+include data/hg38/*
+include data/hg38/index/*
+include data/mm10/*
+include data/mm10/index/*
+include data/mm10_ncbi/*
+include data/mm10_ncbi/index/*
